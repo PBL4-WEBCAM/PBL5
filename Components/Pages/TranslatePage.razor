@@ -1,0 +1,264 @@
+﻿@page "/Translate"
+@inject IJSRuntime JS
+<div class="translate-page">
+    <div id="translate" class="box-translate">
+        <div class="title">
+            <p>@trsl</p>
+        </div>
+        <div class="box">
+            <textarea @oninput="TranslateAction" placeholder="Nhập văn bản cần dịch...">@Translate</textarea>
+            <div id="ddiv">
+                <button id="mic-btn" @onclick="StartRecognition" title="Ghi âm">
+                    <i class="fa-solid fa-microphone"></i>
+                </button>
+                <button id="img-btn" @onclick="chooseimg" title="Chọn hình ảnh">
+                    <i class="fa-solid fa-images"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="btn-div">
+        <button @onclick="Swap" title="Hoán đổi ngôn ngữ">
+            <i class="fa-solid fa-right-left"></i>
+        </button>
+    </div>
+
+    <div id="result" class="box-translate">
+        <div class="title">
+            <p>@rst</p>
+        </div>
+        <div class="box">
+            <textarea readonly placeholder="Kết quả dịch sẽ hiển thị ở đây...">@Result</textarea>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Reset cơ bản và font đẹp hơn */
+    body {
+        margin: 0;
+        font-family: "Segoe UI", sans-serif;
+        background: #f2f5fa;
+        color: #333;
+        font-size: 16px;
+    }
+
+    i {
+        color: #3e67d6;
+        font-size: 1.6rem;
+    }
+
+    .translate-page {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1rem;
+        gap: 1.2rem;
+        box-sizing: border-box;
+    }
+
+    .box-translate {
+        width: 100%;
+        background: white;
+        border-radius: 1.2rem;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+        padding: 1rem;
+    }
+
+    .title {
+        background-color: #3e67d6;
+        color: white;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 0.8rem;
+        padding: 10px;
+        text-align: center;
+        margin-bottom: 0.6rem;
+    }
+
+    .box {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    textarea {
+        resize: none;
+        padding: 12px;
+        font-size: 1.05rem;
+        border-radius: 0.8rem;
+        border: 1px solid #d1d5db;
+        background: #fafafa;
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 160px;
+    }
+
+        textarea:focus {
+            outline: 2px solid #3e67d6;
+            background: white;
+        }
+
+    #ddiv {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+    }
+
+        #ddiv button {
+            border: none;
+            background: #e8ecf8;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+            #ddiv button:hover {
+                background: #d7dcf0;
+                transform: scale(1.05);
+            }
+
+    #mic-btn.recording {
+        background: #f44336 !important;
+        animation: pulse 1.1s infinite;
+    }
+
+        #mic-btn.recording i {
+            color: white;
+        }
+
+    @@keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(244,67,54, 0.6);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(244,67,54, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(244,67,54, 0);
+        }
+    }
+
+    #btn-div {
+        display: flex;
+        justify-content: center;
+    }
+
+        #btn-div button {
+            background: #3e67d6;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 65px;
+            height: 65px;
+            font-size: 1.4rem;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+            transition: transform 0.2s;
+        }
+
+            #btn-div button:hover {
+                transform: rotate(90deg) scale(1.05);
+                background: #3458b5;
+            }
+
+    #result .box textarea {
+        background: #f8faff;
+        border: 1px solid #a8b8e0;
+        min-height: 180px;
+    }
+
+    /* Responsive cho Android màn nhỏ */
+    @@media (max-width: 600px) {
+        body {
+            font-size: 15px;
+        }
+
+        #ddiv button {
+            width: 55px;
+            height: 55px;
+        }
+
+        #btn-div button {
+            width: 60px;
+            height: 60px;
+        }
+    }
+</style>
+
+
+@code {
+    private string Translate = "";
+    private string Result = "";
+
+    private const string ta = "English";
+    private const string tv = "Tiếng Việt";
+
+    private string trsl = ta;
+    private string rst = tv;
+    private bool check = true;
+
+    private void Swap()
+    {
+        if (check)
+        {
+            trsl = tv;
+            rst = ta;
+        }
+        else
+        {
+            trsl = ta;
+            rst = tv;
+        }
+
+        check = !check;
+
+        // Hoán đổi nội dung giữa hai textarea khi đổi ngôn ngữ
+        var temp = Translate;
+        Translate = Result;
+        Result = temp;
+    }
+
+    // Hàm ghi âm
+    [JSInvokable]
+    public Task OnSpeechResult(string text)
+    {
+        Translate = text;
+        // Gọi hàm dịch ở đây nếu cần
+        Result = Translate; // Tạm thời gán kết quả giống input
+        StateHasChanged(); // Cập nhật giao diện
+        return Task.CompletedTask;
+    }
+
+    // Hàm chọn hình ảnh
+    private void chooseimg()
+    {
+        // Chức năng chọn hình ảnh sẽ được thêm sau
+    }
+
+    private async Task StartRecognition()
+    {
+        try
+        {
+            var lang = check ? "en-US" : "vi-VN";
+            await JS.InvokeVoidAsync("startRecognition", DotNetObjectReference.Create(this), lang);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi: {ex.Message}");
+        }
+    }
+
+    private void TranslateAction(ChangeEventArgs e)
+    {
+        Translate = e.Value?.ToString() ?? "";
+        // Ở đây bạn có thể gọi API dịch thực tế
+        Result = Translate; // Tạm thời gán giống nhau
+    }
+}

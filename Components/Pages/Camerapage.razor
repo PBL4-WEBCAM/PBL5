@@ -1,0 +1,900 @@
+﻿@page "/Camera"
+@using System.Text.Json
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+<div class="camera-container">
+    <div class="header">
+        <h1>Nhận Diện Từ Vựng Bằng Camera</h1>
+        <p class="subtitle">Sử dụng AI YOLO để nhận diện đối tượng và hiển thị từ vựng</p>
+    </div>
+
+    <div class="camera-section">
+        <div class="camera-controls">
+            <button class="btn btn-primary" @onclick="StartCamera" disabled="@isCameraActive">
+                <i class="fa-solid fa-camera"></i>
+                Bật Camera
+            </button>
+            <button class="btn btn-secondary" @onclick="StopCamera" disabled="@(isCameraActive == false)">
+                <i class="fa-solid fa-stop"></i>
+                Tắt Camera
+            </button>
+            <button class="btn btn-success" @onclick="CaptureAndAnalyze" disabled="@(isCameraActive == false)">
+                <i class="fa-solid fa-search"></i>
+                Chụp & Phân Tích
+            </button>
+            <button class="btn btn-info" @onclick="ToggleAutoMode">
+                <i class="fa-solid fa-robot"></i>
+                @(isAutoMode ? "Tự Động" : "Thủ Công")
+            </button>
+        </div>
+
+        <div class="camera-preview">
+            <video id="cameraVideo" autoplay playsinline muted
+                   style="display: @(isCameraActive ? "block" : "none")"></video>
+            <canvas id="cameraCanvas"></canvas>
+
+            @if (!isCameraActive)
+            {
+                <div class="camera-placeholder">
+                    <i class="fa-solid fa-camera"></i>
+                    <p>Camera chưa được bật</p>
+                </div>
+            }
+        </div>
+
+        <div class="analysis-controls">
+            <div class="confidence-slider">
+                <label>Độ tin cậy tối thiểu: <strong>@(minConfidence * 100)%</strong></label>
+                <input type="range" min="0.1" max="0.9" step="0.05"
+                       @bind="minConfidence" @bind:after="UpdateDetectionSettings" />
+            </div>
+
+        </div>
+    </div>
+
+    <div class="results-section">
+        <div class="detected-objects">
+            <h3>Đối tượng đã nhận diện</h3>
+            @if (detectedObjects.Count == 0)
+            {
+                <div class="no-results">
+                    <i class="fa-solid fa-eye-slash"></i>
+                    <p>Chưa có đối tượng nào được nhận diện</p>
+                </div>
+            }
+            else
+            {
+                <div class="objects-grid">
+                    @foreach (var obj in detectedObjects)
+                    {
+                        <div class="object-card" @onclick="() => SelectObject(obj)">
+                            <div class="object-image">
+                                <img src="@obj.ThumbnailUrl" alt="@obj.Label" />
+                            </div>
+                            <div class="object-info">
+                                <h4>@obj.Label</h4>
+                                <p class="confidence">Độ tin cậy: @(obj.Confidence * 100)%</p>
+                                <p class="vocabulary">@obj.Vocabulary</p>
+                            </div>
+                            <div class="object-actions">
+                                <button class="btn-icon" @onclick="() => SaveToVocabulary(obj)"
+                                        title="Lưu vào từ vựng">
+                                    <i class="fa-solid fa-bookmark"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="vocabulary-panel">
+            <h3>Từ vựng đã lưu</h3>
+            <div class="saved-vocabulary">
+                @if (savedVocabulary.Count == 0)
+                {
+                    <div class="no-vocabulary">
+                        <i class="fa-solid fa-book-open"></i>
+                        <p>Chưa có từ vựng nào được lưu</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var vocab in savedVocabulary)
+                    {
+                        <div class="vocab-item">
+                            <span class="word">@vocab.Word</span>
+                            <span class="meaning">@vocab.Meaning</span>
+                            <button class="btn-icon delete" @onclick="() => RemoveVocabulary(vocab)">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal hiển thị chi tiết đối tượng -->
+@if (selectedObject != null)
+{
+    <div class="modal-overlay" @onclick="CloseObjectModal">
+        <div class="modal-content" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h3>Chi tiết đối tượng</h3>
+                <button class="close-btn" @onclick="CloseObjectModal">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="object-detail">
+                    <img src="@selectedObject.ThumbnailUrl" alt="@selectedObject.Label" />
+                    <div class="detail-info">
+                        <h4>@selectedObject.Label</h4>
+                        <p><strong>Độ tin cậy:</strong> @(selectedObject.Confidence * 100)%</p>
+                        <p><strong>Từ vựng:</strong> @selectedObject.Vocabulary</p>
+                        <p><strong>Thời gian:</strong> @selectedObject.DetectedTime.ToString("HH:mm:ss")</p>
+                    </div>
+                </div>
+                <div class="vocabulary-actions">
+                    <button class="btn btn-primary" @onclick="() => SaveToVocabulary(selectedObject)">
+                        <i class="fa-solid fa-save"></i>
+                        Lưu vào từ vựng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* Biến màu sắc */
+    :root {
+        --primary-color: #3e67d6;
+        --secondary-color: #f1f5fd;
+        --success-color: #4caf50;
+        --danger-color: #f44336;
+        --warning-color: #ff9800;
+        --text-color: #333;
+        --light-text: #666;
+        --border-color: #ddd;
+        --background-color: #f9f9f9;
+    }
+
+    .camera-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-color);
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .header h1 {
+        color: var(--primary-color);
+        margin-bottom: 10px;
+        font-size: 2.2rem;
+    }
+
+    .subtitle {
+        color: var(--light-text);
+        font-size: 1.1rem;
+    }
+
+    .camera-section {
+        background-color: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+
+    .camera-controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-primary {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background-color: #2a4fb3;
+    }
+
+    .btn-secondary {
+        background-color: var(--light-text);
+        color: white;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background-color: #555;
+    }
+
+    .btn-success {
+        background-color: var(--success-color);
+        color: white;
+    }
+
+    .btn-success:hover:not(:disabled) {
+        background-color: #3d8b40;
+    }
+
+    .btn-info {
+        background-color: var(--warning-color);
+        color: white;
+    }
+
+    .btn-info:hover:not(:disabled) {
+        background-color: #e68900;
+    }
+
+    .camera-preview {
+        position: relative;
+        width: 100%;
+        height: 400px;
+        background-color: #000;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #cameraVideo,#cameraCanvas {
+        width: 100%;
+        height: 100%;
+        transform: scaleX(-1);
+        object-fit: cover;
+        background-color: black;
+    }
+
+    #cameraCanvas{
+    }
+    .camera-placeholder {
+        text-align: center;
+        color: white;
+    }
+
+    .camera-placeholder i {
+        font-size: 3rem;
+        margin-bottom: 10px;
+        opacity: 0.5;
+    }
+
+    .analysis-controls {
+        padding: 10px 0;
+    }
+
+    .confidence-slider {
+        max-width: 300px;
+    }
+
+    .confidence-slider label {
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .confidence-slider input {
+        width: 100%;
+    }
+
+    .results-section {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+    }
+
+    .detected-objects, .vocabulary-panel {
+        background-color: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .detected-objects h3, .vocabulary-panel h3 {
+        margin-top: 0;
+        color: var(--primary-color);
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .no-results, .no-vocabulary {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--light-text);
+    }
+
+    .no-results i, .no-vocabulary i {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+
+    .objects-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .object-card {
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+    }
+
+    .object-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .object-image {
+        height: 120px;
+        overflow: hidden;
+    }
+
+    .object-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .object-info {
+        padding: 10px;
+    }
+
+    .object-info h4 {
+        margin: 0 0 5px 0;
+        color: var(--primary-color);
+    }
+
+    .confidence {
+        font-size: 0.8rem;
+        color: var(--light-text);
+        margin: 0 0 5px 0;
+    }
+
+    .vocabulary {
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .object-actions {
+        padding: 0 10px 10px 10px;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .btn-icon {
+        background: none;
+        border: none;
+        color: var(--light-text);
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 3px;
+        transition: color 0.2s, background-color 0.2s;
+    }
+
+    .btn-icon:hover {
+        color: var(--primary-color);
+        background-color: var(--secondary-color);
+    }
+
+    .btn-icon.delete:hover {
+        color: var(--danger-color);
+    }
+
+    .saved-vocabulary {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .vocab-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .vocab-item:last-child {
+        border-bottom: none;
+    }
+
+    .word {
+        font-weight: bold;
+        color: var(--primary-color);
+    }
+
+    .meaning {
+        flex-grow: 1;
+        margin-left: 10px;
+        color: var(--text-color);
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background-color: white;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: var(--primary-color);
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: var(--light-text);
+    }
+
+    .close-btn:hover {
+        color: var(--text-color);
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .object-detail {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .object-detail img {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .detail-info h4 {
+        margin-top: 0;
+        color: var(--primary-color);
+    }
+
+    .vocabulary-actions {
+        display: flex;
+        justify-content: center;
+    }
+
+    /* Responsive design */
+    @@media (max-width: 768px) {
+        .results-section {
+            grid-template-columns: 1fr;
+        }
+
+        .camera-controls {
+            justify-content: center;
+        }
+
+        .object-detail {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .objects-grid {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        }
+    }
+</style>
+
+@code {
+    // Biến trạng thái
+    private bool isCameraActive = false;
+    private bool isAutoMode = false;
+    private double minConfidence = 0.5;
+    private DetectedObject? selectedObject = null;
+
+    // Danh sách đối tượng
+    private List<DetectedObject> detectedObjects = new List<DetectedObject>();
+    private List<SavedVocabulary> savedVocabulary = new List<SavedVocabulary>();
+
+    // Timer cho chế độ tự động
+    private Timer? autoDetectionTimer;
+    private const int AUTO_DETECTION_INTERVAL = 3000; // 3 giây
+
+    // Tham chiếu đến JS
+    private IJSObjectReference? cameraModule;
+    private DotNetObjectReference<Camerapage>? dotNetRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        dotNetRef = DotNetObjectReference.Create(this);
+
+        // Khởi tạo dữ liệu mẫu
+        InitializeSampleData();
+    }
+
+    private void InitializeSampleData()
+    {
+        // Thêm một số từ vựng đã lưu mẫu
+        savedVocabulary.Add(new SavedVocabulary { Word = "Dog", Meaning = "Con chó" });
+        savedVocabulary.Add(new SavedVocabulary { Word = "Cat", Meaning = "Con mèo" });
+        savedVocabulary.Add(new SavedVocabulary { Word = "Book", Meaning = "Quyển sách" });
+    }
+
+    // HÀM QUAN TRỌNG: Khởi động camera
+    private async Task StartCamera()
+    {
+        try
+        {
+            // Import module JavaScript để điều khiển camera
+            cameraModule = await JSRuntime.InvokeAsync<IJSObjectReference>(
+                "import", "./js/camera.js");
+
+            // Khởi động camera
+            await cameraModule.InvokeVoidAsync("startCamera", dotNetRef);
+
+            isCameraActive = true;
+            StateHasChanged();
+
+            // Nếu đang ở chế độ tự động, bật timer
+            if (isAutoMode)
+            {
+                StartAutoDetection();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi khi khởi động camera: {ex.Message}");
+            // Ở đây có thể thêm thông báo lỗi cho người dùng
+        }
+    }
+
+    // HÀM QUAN TRỌNG: Dừng camera
+    private async Task StopCamera()
+    {
+        try
+        {
+            if (cameraModule != null)
+            {
+                await cameraModule.InvokeVoidAsync("stopCamera");
+            }
+
+            isCameraActive = false;
+            StopAutoDetection();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi khi dừng camera: {ex.Message}");
+        }
+    }
+
+    // HÀM QUAN TRỌNG: Chụp ảnh và phân tích bằng AI YOLO
+    private async Task CaptureAndAnalyze()
+    {
+        if (!isCameraActive || cameraModule == null) return;
+
+        try
+        {
+            // Chụp ảnh từ camera
+            var imageData = await cameraModule.InvokeAsync<string>("captureImage");
+
+            if (!string.IsNullOrEmpty(imageData))
+            {
+                // GỌI API YOLO Ở ĐÂY
+                // Đây là hàm bạn cần triển khai để gọi API YOLO của bạn
+                await CallYoloApi(imageData);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi khi chụp và phân tích: {ex.Message}");
+        }
+    }
+
+    // HÀM QUAN TRỌNG: Gọi API YOLO để nhận diện đối tượng
+    private async Task CallYoloApi(string imageData)
+    {
+        try
+        {
+            // TẠO HTTP CLIENT ĐỂ GỌI API
+            using var httpClient = new HttpClient();
+
+            // Chuẩn bị dữ liệu gửi đi
+            var content = new MultipartFormDataContent();
+
+            // Chuyển đổi base64 thành byte array
+            var imageBytes = Convert.FromBase64String(imageData.Split(',')[1]);
+            var imageContent = new ByteArrayContent(imageBytes);
+            imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+
+            content.Add(imageContent, "image", "capture.jpg");
+
+            // THAY ĐỔI URL NÀY THÀNH ENDPOINT API YOLO CỦA BẠN
+            var apiUrl = "http://localhost:5000/api/yolo/detect"; // URL API YOLO của bạn
+
+            // Gửi request đến API YOLO
+            var response = await httpClient.PostAsync(apiUrl, content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                // Xử lý kết quả trả về từ API YOLO
+                // Giả sử API trả về JSON với cấu trúc:
+                // { "detections": [ { "label": "dog", "confidence": 0.85, "bbox": [x,y,w,h] }, ... ] }
+
+                var detectionResult = JsonSerializer.Deserialize<YoloDetectionResult>(responseContent);
+
+                if (detectionResult?.Detections != null)
+                {
+                    // Lọc kết quả theo độ tin cậy tối thiểu
+                    var validDetections = detectionResult.Detections
+                        .Where(d => d.Confidence >= minConfidence)
+                        .ToList();
+
+                    // Thêm vào danh sách đối tượng đã nhận diện
+                    foreach (var detection in validDetections)
+                    {
+                        // Tạo thumbnail từ vùng detected
+                        var thumbnailUrl = await cameraModule!.InvokeAsync<string>(
+                            "cropImage", imageData, detection.Bbox);
+
+                        var detectedObject = new DetectedObject
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            Label = detection.Label,
+                            Confidence = detection.Confidence,
+                            Vocabulary = GetVocabularyForLabel(detection.Label),
+                            ThumbnailUrl = thumbnailUrl,
+                            DetectedTime = DateTime.Now
+                        };
+
+                        detectedObjects.Insert(0, detectedObject);
+
+                        // Giới hạn số lượng đối tượng hiển thị
+                        if (detectedObjects.Count > 20)
+                        {
+                            detectedObjects.RemoveAt(detectedObjects.Count - 1);
+                        }
+                    }
+
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Lỗi API: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi khi gọi API YOLO: {ex.Message}");
+
+            // Trong môi trường phát triển, có thể thêm dữ liệu mẫu để test
+            AddSampleDetection();
+        }
+    }
+
+    // Hàm hỗ trợ: Chuyển đổi nhãn thành từ vựng
+    private string GetVocabularyForLabel(string label)
+    {
+        // Ánh xạ nhãn YOLO sang từ vựng
+        var vocabularyMap = new Dictionary<string, string>
+        {
+            { "person", "Người" },
+            { "dog", "Con chó" },
+            { "cat", "Con mèo" },
+            { "car", "Xe hơi" },
+            { "book", "Quyển sách" },
+            { "bottle", "Chai nước" },
+            { "chair", "Cái ghế" },
+            { "table", "Cái bàn" },
+            { "phone", "Điện thoại" },
+            { "laptop", "Máy tính xách tay" }
+        };
+
+        return vocabularyMap.ContainsKey(label.ToLower())
+            ? vocabularyMap[label.ToLower()]
+            : label;
+    }
+
+    // Hàm hỗ trợ: Thêm dữ liệu mẫu để test (chỉ dùng khi phát triển)
+    private void AddSampleDetection()
+    {
+        var sampleObjects = new[]
+        {
+            new { Label = "dog", Vocabulary = "Con chó", Confidence = 0.87 },
+            new { Label = "cat", Vocabulary = "Con mèo", Confidence = 0.92 },
+            new { Label = "book", Vocabulary = "Quyển sách", Confidence = 0.78 }
+        };
+
+        var random = new Random();
+        var sample = sampleObjects[random.Next(sampleObjects.Length)];
+
+        var detectedObject = new DetectedObject
+        {
+            Id = Guid.NewGuid().ToString(),
+            Label = sample.Label,
+            Confidence = sample.Confidence,
+            Vocabulary = sample.Vocabulary,
+            ThumbnailUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'%3E%3Crect width='200' height='150' fill='%23f0f0f0'/%3E%3Ctext x='100' y='75' text-anchor='middle' dy='0.3em' font-family='Arial' font-size='14' fill='%23666'%3E" + sample.Label + "%3C/text%3E%3C/svg%3E",
+            DetectedTime = DateTime.Now
+        };
+
+        detectedObjects.Insert(0, detectedObject);
+        StateHasChanged();
+    }
+
+    // Các hàm điều khiển chế độ tự động
+    private void ToggleAutoMode()
+    {
+        isAutoMode = !isAutoMode;
+
+        if (isAutoMode && isCameraActive)
+        {
+            StartAutoDetection();
+        }
+        else
+        {
+            StopAutoDetection();
+        }
+
+        StateHasChanged();
+    }
+
+    private void StartAutoDetection()
+    {
+        autoDetectionTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                if (isCameraActive && isAutoMode)
+                {
+                    await CaptureAndAnalyze();
+                }
+            });
+        }, null, 0, AUTO_DETECTION_INTERVAL);
+    }
+
+    private void StopAutoDetection()
+    {
+        autoDetectionTimer?.Dispose();
+        autoDetectionTimer = null;
+    }
+
+    // Cập nhật cài đặt nhận diện
+    private void UpdateDetectionSettings()
+    {
+        // Có thể thêm logic để cập nhật cài đặt detection
+        StateHasChanged();
+    }
+
+    // Quản lý đối tượng được chọn
+    private void SelectObject(DetectedObject obj)
+    {
+        selectedObject = obj;
+        StateHasChanged();
+    }
+
+    private void CloseObjectModal()
+    {
+        selectedObject = null;
+        StateHasChanged();
+    }
+
+    // Lưu từ vựng
+    private void SaveToVocabulary(DetectedObject obj)
+    {
+        if (!savedVocabulary.Any(v => v.Word.Equals(obj.Label, StringComparison.OrdinalIgnoreCase)))
+        {
+            savedVocabulary.Add(new SavedVocabulary
+            {
+                Word = obj.Label,
+                Meaning = obj.Vocabulary
+            });
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveVocabulary(SavedVocabulary vocab)
+    {
+        savedVocabulary.Remove(vocab);
+        StateHasChanged();
+    }
+
+    // Dọn dẹp tài nguyên
+    public async ValueTask DisposeAsync()
+    {
+        await StopCamera();
+        StopAutoDetection();
+        dotNetRef?.Dispose();
+
+        if (cameraModule != null)
+        {
+            await cameraModule.DisposeAsync();
+        }
+    }
+
+    // Các lớp dữ liệu
+    private class DetectedObject
+    {
+        public string Id { get; set; } = "";
+        public string Label { get; set; } = "";
+        public double Confidence { get; set; }
+        public string Vocabulary { get; set; } = "";
+        public string ThumbnailUrl { get; set; } = "";
+        public DateTime DetectedTime { get; set; }
+    }
+
+    private class SavedVocabulary
+    {
+        public string Word { get; set; } = "";
+        public string Meaning { get; set; } = "";
+    }
+
+    // Lớp để deserialize kết quả từ API YOLO
+    private class YoloDetectionResult
+    {
+        public List<YoloDetection> Detections { get; set; } = new();
+    }
+
+    private class YoloDetection
+    {
+        public string Label { get; set; } = "";
+        public double Confidence { get; set; }
+        public List<double> Bbox { get; set; } = new();
+    }
+}

@@ -1,0 +1,911 @@
+﻿@* @page directive: định tuyến cho component này — khi truy cập "/weather" sẽ render component này *@
+@page "/Note"
+
+<!-- Wrapper chính chứa toàn bộ trang "Sổ Tay" -->
+<div class="notebook-container">
+    <!-- Header: tiêu đề trang và tên tác giả -->
+    <div class="header">
+        <h1>Số Tay</h1>
+        <p class="author">Nguyễn Thanh Liêm</p>
+    </div>
+
+    <!-- Nội dung chính của sổ tay: sidebar + main content -->
+    <div class="notebook-content">
+        <!-- SIDEBAR: cột bên trái chứa các danh mục và danh sách "sổ tay của tôi" -->
+        <div id="sidebar">
+            <!-- Phần danh mục (category) -->
+            <div class="sidebar-section-weather">
+                <h3>Danh mục</h3>
+                <ul class="category-list">
+                    <!--
+                        .category-item:
+                        - Hiển thị một mục danh mục (vd: "Tất cả", "Từ vựng cơ bản", ...)
+                        - @onclick gọi hàm SetActiveCategory(...) để lọc danh sách theo danh mục.
+                        Lưu ý: @onclick ở đây gắn với lambda sẽ gọi phương thức C# khi click.
+                    -->
+                    <li class="category-item active" @onclick="@(() => SetActiveCategory("Tất cả"))">
+                        <span>Tất cả</span>
+                        <!-- Gọi hàm C# GetTotalVocabularyCount() để hiển thị tổng số từ -->
+                        <span class="count">@GetTotalVocabularyCount()</span>
+                    </li>
+
+                    <!-- Mỗi <li> tương ứng 1 danh mục cụ thể; khi click sẽ set active category -->
+                    <li class="category-item" @onclick="@(() => SetActiveCategory("Từ vựng cơ bản"))">
+                        <span>Từ vựng cơ bản</span>
+                        <span class="count">@GetCategoryCount("Từ vựng cơ bản")</span>
+                    </li>
+
+                    <li class="category-item" @onclick="@(() => SetActiveCategory("Từ vựng chuyên ngành"))">
+                        <span>Từ vựng chuyên ngành</span>
+                        <span class="count">@GetCategoryCount("Từ vựng chuyên ngành")</span>
+                    </li>
+
+                    <li class="category-item" @onclick="@(() => SetActiveCategory("Từ vựng về đồ vật"))">
+                        <span>Từ vựng về đồ vật</span>
+                        <span class="count">@GetCategoryCount("Từ vựng về đồ vật")</span>
+                    </li>
+
+                </ul>
+            </div>
+
+            <!-- Phần "Sổ tay của tôi": hiển thị các bộ sổ tay hoặc nhóm (ở đây chỉ demo 2 nhóm) -->
+            <div class="sidebar-section-weather">
+                <h3>Số tay của tôi</h3>
+                <ul class="notebook-list">
+                    <!-- Hiển thị số lượng từ trong mỗi nhóm bằng truy cập vào List.Count -->
+                    <li class="notebook-item">
+                        <span>Từ vựng cá nhân</span>
+                        <span class="count">@personalVocabulary.Count</span>
+                    </li>
+                    <li class="notebook-item">
+                        <span>Từ vựng học tập</span>
+                        <span class="count">@studyVocabulary.Count</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Nút tạo sổ tay mới: gọi ShowCreateNotebookModal để mở modal tạo sổ tay -->
+            <button class="create-notebook-btn" @onclick="ShowCreateNotebookModal">
+                <i class="fa-solid fa-plus"></i>
+                Tạo số tay mới
+            </button>
+        </div>
+
+        <!-- MAIN CONTENT: phần hiển thị danh sách từ vựng và các thao tác thêm/sửa/xóa -->
+        <div class="main-content">
+            <!-- Header nhỏ trong main: tiêu đề danh sách và nút thêm từ vựng -->
+            <div class="vocabulary-header">
+                <h2>Từ vựng của tôi</h2>
+                <!-- Nút thêm: khi click sẽ mở modal thêm từ vựng -->
+                <button class="add-vocab-btn" @onclick="ShowAddVocabularyModal">
+                    <i class="fa-solid fa-plus"></i>
+                    Thêm từ vựng
+                </button>
+            </div>
+
+            <!-- VÙNG HIỂN THỊ DANH SÁCH TỪ -->
+            <div class="vocabulary-list">
+                <!--
+                    Nếu filteredVocabulary rỗng -> hiển thị trạng thái empty.
+                    filteredVocabulary được cập nhật khi đổi danh mục (SetActiveCategory).
+                -->
+                @if (filteredVocabulary.Count == 0)
+                {
+                    <div class="empty-state">
+                        <i class="fa-solid fa-book-open"></i>
+                        <p>Chưa có từ vựng nào. Hãy thêm từ vựng đầu tiên!</p>
+                    </div>
+                }
+                else
+                {
+                    <!-- Nếu có phần tử thì duyệt và render từng item -->
+                    @foreach (var item in filteredVocabulary)
+                    {
+                        <!-- Mỗi "vocabulary-item" tương ứng 1 từ vựng -->
+                        <div class="vocabulary-item">
+                            <!-- Checkbox: @bind hai chiều với item.IsLearned
+                                 => khi toggle sẽ cập nhật property trong object và UI re-render -->
+                            <div class="item-checkbox">
+                                <input type="checkbox" @bind="item.IsLearned" />
+                            </div>
+
+                            <!-- Nội dung chính của từ -->
+                            <div class="item-content">
+                                <!-- Từ (word) -> hiển thị lớn, màu chủ đạo -->
+                                <div class="word">@item.Word</div>
+
+                                <!-- Nghĩa của từ -->
+                                <div class="meaning">@item.Meaning</div>
+
+                                <!-- Nếu có ghi chú (note) thì hiển thị -->
+                                @if (!string.IsNullOrEmpty(item.Note))
+                                {
+                                    <div class="note">@item.Note</div>
+                                }
+
+                                <!-- Meta: danh mục và ngày thêm -->
+                                <div class="item-meta">
+                                    <span class="category">@item.Category</span>
+                                    <!-- Định dạng ngày dd/MM/yyyy khi hiển thị -->
+                                    <span class="date">@item.AddedDate.ToString("dd/MM/yyyy")</span>
+                                </div>
+                            </div>
+
+                            <!-- Các nút hành động trên mỗi item: sửa và xóa -->
+                            <div class="item-actions">
+                                <!-- Button Sửa: gọi EditVocabulary(item) truyền object để sửa -->
+                                <button class="action-btn" @onclick="() => EditVocabulary(item)" title="Sửa">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+
+                                <!-- Button Xóa: gọi DeleteVocabulary(item) để remove khỏi list -->
+                                <button class="action-btn delete" @onclick="() => DeleteVocabulary(item)" title="Xóa">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===========================
+     MODAL: Thêm / Sửa từ vựng
+     - Hiển thị khi showVocabularyModal == true
+     - Dữ liệu form liên kết 2 chiều (@bind) với newVocabulary (model tạm)
+     =========================== -->
+@if (showVocabularyModal)
+{
+    <div class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <!-- Tiêu đề động: nếu đang edit (editingVocabulary != null) thì hiển thị "Sửa"... -->
+                <h3>@(editingVocabulary == null ? "Thêm từ vựng" : "Sửa từ vựng")</h3>
+
+                <!-- Nút đóng modal: gọi CloseVocabularyModal -->
+                <button class="close-btn" @onclick="CloseVocabularyModal">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Modal body: form nhập liệu -->
+            <div class="modal-body">
+                <!-- Từ -->
+                <div class="form-group">
+                    <label for="word">Từ:</label>
+                    <!-- @bind="newVocabulary.Word": bind 2 chiều -> cập nhật newVocabulary khi user gõ -->
+                    <input id="word" type="text" @bind="newVocabulary.Word" placeholder="Nhập từ vựng" />
+                </div>
+
+                <!-- Nghĩa -->
+                <div class="form-group">
+                    <label for="meaning">Nghĩa của từ:</label>
+                    <input id="meaning" type="text" @bind="newVocabulary.Meaning" placeholder="Nhập nghĩa" />
+                </div>
+
+                <!-- Ghi chú (tùy chọn) -->
+                <div class="form-group">
+                    <label for="note">Ghi chú:</label>
+                    <textarea id="note" @bind="newVocabulary.Note" placeholder="Nhập ghi chú (tùy chọn)"></textarea>
+                </div>
+
+                <!-- Danh mục: select bind với newVocabulary.Category -->
+                <div class="form-group">
+                    <label for="category">Danh mục:</label>
+                    <select id="category" @bind="newVocabulary.Category">
+                        <option value="Từ vựng cơ bản">Từ vựng cơ bản</option>
+                        <option value="Từ vựng chuyên ngành">Từ vựng chuyên ngành</option>
+                        <option value="Từ vựng về đồ vật">Từ vựng về đồ vật</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Footer modal: Hủy hoặc Xác nhận -->
+            <div class="modal-footer">
+                <button class="btn btn-cancel" @onclick="CloseVocabularyModal">Hủy</button>
+                <!-- Save: gọi SaveVocabulary để validate và thêm/cập nhật danh sách -->
+                <button class="btn btn-confirm" @onclick="SaveVocabulary">Xong</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ===========================
+     MODAL: Tạo sổ tay mới (showNotebookModal)
+     - Giống modal trước nhưng phục vụ tạo sổ tay (chỉ demo, chưa lưu danh sách sổ tay)
+     =========================== -->
+@if (showNotebookModal)
+{
+    <div class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Tạo số tay mới</h3>
+                <button class="close-btn" @onclick="CloseNotebookModal">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="notebook-name">Tên số tay:</label>
+                    <!-- @bind với newNotebookName -->
+                    <input id="notebook-name" type="text" @bind="newNotebookName" placeholder="Nhập tên số tay" />
+                </div>
+                <div class="form-group">
+                    <label for="notebook-desc">Mô tả:</label>
+                    <textarea id="notebook-desc" @bind="newNotebookDescription" placeholder="Nhập mô tả (tùy chọn)"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" @onclick="CloseNotebookModal">Hủy</button>
+                <button class="btn btn-confirm" @onclick="CreateNotebook">Tạo</button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* Biến màu sắc */
+    :root {
+        --primary-color: #3e67d6;
+        --secondary-color: #f1f5fd;
+        --text-color: #333;
+        --light-text: #666;
+        --border-color: #ddd;
+        --background-color: #f9f9f9;
+        --success-color: #4caf50;
+        --danger-color: #f44336;
+    }
+
+    .notebook-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-color);
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+        .header h1 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            font-size: 2.5rem;
+        }
+
+    .author {
+        color: var(--light-text);
+        font-style: italic;
+        margin: 0;
+    }
+
+    .notebook-content {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 30px;
+    }
+
+    #sidebar {
+        background-color: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        height: fit-content;
+    }
+
+    .sidebar-section-weather {
+        margin-bottom: 25px;
+    }
+
+        .sidebar-section-weather h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+    .category-list, .notebook-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .category-item, .notebook-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        cursor: pointer;
+        border-radius: 5px;
+        padding-left: 10px;
+        transition: background-color 0.2s;
+    }
+
+        .category-item:hover, .notebook-item:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .category-item.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+            .category-item.active .count {
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+
+    .count {
+        background-color: var(--secondary-color);
+        color: var(--primary-color);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+
+    .create-notebook-btn {
+        width: 100%;
+        padding: 12px;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: background-color 0.2s;
+    }
+
+        .create-notebook-btn:hover {
+            background-color: #2a4fb3;
+        }
+
+    .main-content {
+        background-color: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    .vocabulary-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+        .vocabulary-header h2 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+    .add-vocab-btn {
+        padding: 10px 15px;
+        background-color: var(--success-color);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color 0.2s;
+    }
+
+        .add-vocab-btn:hover {
+            background-color: #3d8b40;
+        }
+
+    .vocabulary-list {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .vocabulary-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 15px;
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color 0.2s;
+    }
+
+        .vocabulary-item:hover {
+            background-color: var(--secondary-color);
+        }
+
+    .item-checkbox {
+        margin-right: 15px;
+        margin-top: 5px;
+    }
+
+        .item-checkbox input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+    .item-content {
+        flex-grow: 1;
+    }
+
+    .word {
+        font-weight: bold;
+        font-size: 1.1rem;
+        color: var(--primary-color);
+        margin-bottom: 5px;
+    }
+
+    .meaning {
+        margin-bottom: 5px;
+    }
+
+    .note {
+        font-style: italic;
+        color: var(--light-text);
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+    }
+
+    .item-meta {
+        display: flex;
+        gap: 15px;
+        font-size: 0.8rem;
+        color: var(--light-text);
+    }
+
+    .category {
+        background-color: var(--secondary-color);
+        color: var(--primary-color);
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+
+    .item-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .action-btn {
+        background: none;
+        border: none;
+        color: var(--light-text);
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 5px;
+        border-radius: 3px;
+        transition: color 0.2s, background-color 0.2s;
+    }
+
+        .action-btn:hover {
+            color: var(--primary-color);
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .action-btn.delete:hover {
+            color: var(--danger-color);
+        }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--light-text);
+    }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: var(--border-color);
+        }
+
+    /* Modal styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex !important;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal {
+        background-color: white;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 500px;
+        z-index: 1001;
+        max-height: 700px;
+        top: unset;
+        left: unset;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: var(--light-text);
+    }
+
+        .close-btn:hover {
+            color: var(--text-color);
+        }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 20px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.2s;
+    }
+
+    .btn-cancel {
+        background-color: #f0f0f0;
+        color: var(--text-color);
+    }
+
+        .btn-cancel:hover {
+            background-color: #e0e0e0;
+        }
+
+    .btn-confirm {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+        .btn-confirm:hover {
+            background-color: #2a4fb3;
+        }
+
+    /* Responsive design */
+    @@media (max-width: 768px) {
+        .notebook-content {
+            grid-template-columns: 1fr;
+        }
+
+        #sidebar {
+            order: 2;
+        }
+
+        .main-content {
+            order: 1;
+        }
+
+        .vocabulary-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .add-vocab-btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+@code {
+    // Danh sách từ vựng cá nhân (lưu tạm trong bộ nhớ)
+    // Trong ứng dụng thực tế bạn có thể load/save từ DB hoặc API.
+    private List<VocabularyItem> personalVocabulary = new List<VocabularyItem>();
+
+    // Danh sách từ vựng thuộc nhóm "học tập" (ví dụ phân loại khác)
+    private List<VocabularyItem> studyVocabulary = new List<VocabularyItem>();
+
+    // Danh sách đã được lọc theo danh mục (hiển thị)
+    private List<VocabularyItem> filteredVocabulary = new List<VocabularyItem>();
+
+    // Danh mục đang được chọn (giá trị hiển thị). Mặc định "Tất cả".
+    private string activeCategory = "Tất cả";
+
+    // Cờ để điều khiển hiển thị modal thêm/sửa từ vựng
+    private bool showVocabularyModal = false;
+
+    // Cờ để điều khiển hiển thị modal tạo sổ tay
+    private bool showNotebookModal = false;
+
+    // Model tạm thời dùng cho form thêm/sửa. @bind các input map vào object này.
+    private VocabularyItem newVocabulary = new VocabularyItem();
+
+    // Nếu khác null thì đang ở chế độ "sửa" — giữ tham chiếu item cần sửa
+    private VocabularyItem editingVocabulary = null;
+
+    // Model tạm cho modal tạo sổ tay (tên, mô tả)
+    private string newNotebookName = "";
+    private string newNotebookDescription = "";
+
+    // Phương thức override: gọi khi component khởi tạo
+    //  - Mình khởi tạo dữ liệu mẫu để test UI
+    //  - Và đặt filteredVocabulary mặc định = personalVocabulary
+    protected override void OnInitialized()
+    {
+        // Khởi tạo dữ liệu mẫu
+        InitializeSampleData();
+
+        // Ban đầu hiển thị toàn bộ danh sách cá nhân
+        filteredVocabulary = personalVocabulary;
+    }
+
+    // Hàm: tạo một số dữ liệu mẫu (chỉ phục vụ demo)
+    // Thực tế bạn sẽ load từ db hoặc API
+    private void InitializeSampleData()
+    {
+        personalVocabulary.Add(new VocabularyItem
+        {
+            Word = "Dog",
+            Meaning = "Con chó",
+            Category = "Từ vựng cơ bản",
+            AddedDate = DateTime.Now.AddDays(-5)
+        });
+
+        personalVocabulary.Add(new VocabularyItem
+        {
+            Word = "Table",
+            Meaning = "Cái bàn",
+            Category = "Từ vựng về đồ vật",
+            AddedDate = DateTime.Now.AddDays(-3)
+        });
+
+        personalVocabulary.Add(new VocabularyItem
+        {
+            Word = "Algorithm",
+            Meaning = "Thuật toán",
+            Category = "Từ vựng chuyên ngành",
+            Note = "Dùng trong lập trình",
+            AddedDate = DateTime.Now.AddDays(-1)
+        });
+
+        studyVocabulary.Add(new VocabularyItem
+        {
+            Word = "Abundant",
+            Meaning = "Dồi dào, phong phú",
+            Category = "Từ vựng cơ bản",
+            AddedDate = DateTime.Now.AddDays(-7)
+        });
+    }
+
+    // Hàm: đổi danh mục đang active và cập nhật danh sách hiển thị (filteredVocabulary)
+    // - Nếu category == "Tất cả" => hiển thị toàn bộ personalVocabulary
+    // - Ngược lại: lọc personalVocabulary theo Category
+    // Lưu ý: hiện tại chỉ lọc personalVocabulary, chưa gộp studyVocabulary vào.
+    private void SetActiveCategory(string category)
+    {
+        activeCategory = category;
+
+        if (category == "Tất cả")
+        {
+            // Hiển thị toàn bộ danh sách cá nhân
+            filteredVocabulary = personalVocabulary;
+        }
+        else
+        {
+            // Lọc theo category
+            filteredVocabulary = personalVocabulary
+                .Where(item => item.Category == category)
+                .ToList();
+        }
+    }
+
+    // Trả về tổng số từ trong personalVocabulary (dùng để hiển thị badge "Tất cả")
+    private int GetTotalVocabularyCount()
+    {
+        return personalVocabulary.Count;
+    }
+
+    // Trả về số lượng từ theo 1 category cụ thể
+    private int GetCategoryCount(string category)
+    {
+        return personalVocabulary.Count(item => item.Category == category);
+    }
+
+    // Mở modal thêm từ vựng:
+    // - reset newVocabulary về object mới
+    // - editingVocabulary = null (tức là chế độ "thêm", không phải sửa)
+    // - bật showVocabularyModal để hiển thị modal
+    private void ShowAddVocabularyModal()
+    {
+        newVocabulary = new VocabularyItem();
+        editingVocabulary = null;
+        showVocabularyModal = true;
+    }
+
+    // Mở modal tạo sổ tay mới:
+    // - reset tên/mô tả
+    // - bật showNotebookModal true
+    private void ShowCreateNotebookModal()
+    {
+        newNotebookName = "";
+        newNotebookDescription = "";
+        showNotebookModal = true;
+    }
+
+    // Đóng modal thêm/sửa từ vựng (chỉ gán flag = false)
+    private void CloseVocabularyModal()
+    {
+        showVocabularyModal = false;
+    }
+
+    // Đóng modal tạo sổ tay
+    private void CloseNotebookModal()
+    {
+        showNotebookModal = false;
+    }
+
+    // Lưu từ vựng (dùng cho cả thêm và sửa)
+    // Quy trình:
+    // 1) Validate: kiểm tra Word và Meaning không rỗng => nếu rỗng thì return (bạn có thể hiển thị thông báo lỗi)
+    // 2) Nếu editingVocabulary == null => thêm mới:
+    //      - set AddedDate, insert vào personalVocabulary (ở vị trí đầu)
+    //    Ngược lại => đang sửa: cập nhật các property của editingVocabulary
+    // 3) Cập nhật filtered list dựa trên activeCategory
+    // 4) đóng modal
+    private void SaveVocabulary()
+    {
+        if (string.IsNullOrWhiteSpace(newVocabulary.Word) || string.IsNullOrWhiteSpace(newVocabulary.Meaning))
+        {
+            // Chưa validate UI; ở đây chỉ return. Có thể thêm thông báo lỗi (Toast / Validation message).
+            return;
+        }
+
+        if (editingVocabulary == null)
+        {
+            // THêm mới: set ngày thêm rồi insert vào danh sách
+            newVocabulary.AddedDate = DateTime.Now;
+            personalVocabulary.Insert(0, newVocabulary);
+
+            // Lưu ý: newVocabulary là object được bind trực tiếp vào form,
+            // nếu cần tránh tham chiếu bị shared, có thể clone object trước khi insert.
+        }
+        else
+        {
+            // TH1: đang sửa — cập nhật các trường của item gốc
+            editingVocabulary.Word = newVocabulary.Word;
+            editingVocabulary.Meaning = newVocabulary.Meaning;
+            editingVocabulary.Note = newVocabulary.Note;
+            editingVocabulary.Category = newVocabulary.Category;
+        }
+
+        // Cập nhật danh sách hiển thị theo category đang active
+        SetActiveCategory(activeCategory);
+
+        // Đóng modal
+        showVocabularyModal = false;
+    }
+
+    // Tạo sổ tay mới (hiện tại chỉ validate tên không rỗng và đóng modal)
+    // Ở đây chưa lưu vào danh sách sổ tay thực sự — bạn có thể mở rộng để push vào collection.
+    private void CreateNotebook()
+    {
+        if (string.IsNullOrWhiteSpace(newNotebookName))
+        {
+            // Thông báo lỗi có thể được thêm vào.
+            return;
+        }
+
+        // Xử lý tạo sổ tay (ví dụ: thêm vào danh sách sổ tay hoặc call API)
+        // TODO: Lưu lại sổ tay mới vào collection/DB nếu cần.
+
+        showNotebookModal = false;
+
+        // Có thể show toast thông báo tạo thành công ở đây
+    }
+
+    // Bắt đầu sửa 1 item:
+    // - lưu tham chiếu item vào editingVocabulary để biết mình đang sửa item nào
+    // - copy giá trị của item sang newVocabulary (form) để người dùng sửa
+    // - show modal
+    private void EditVocabulary(VocabularyItem item)
+    {
+        editingVocabulary = item;
+
+        // Tạo object mới và copy giá trị để form bind vào (tránh sửa trực tiếp trước khi Save)
+        newVocabulary = new VocabularyItem
+        {
+            Word = item.Word,
+            Meaning = item.Meaning,
+            Note = item.Note,
+            Category = item.Category
+        };
+
+        showVocabularyModal = true;
+    }
+
+    // Xóa item khỏi personalVocabulary rồi cập nhật danh sách hiển thị
+    private void DeleteVocabulary(VocabularyItem item)
+    {
+        personalVocabulary.Remove(item);
+
+        // Sau khi xóa, cập nhật filtered view theo category đang active
+        SetActiveCategory(activeCategory);
+    }
+
+    // Định nghĩa class VocabularyItem (model dữ liệu cho 1 từ)
+    private class VocabularyItem
+    {
+        // Từ (vd: "Dog")
+        public string Word { get; set; } = "";
+
+        // Nghĩa tiếng Việt của từ
+        public string Meaning { get; set; } = "";
+
+        // Ghi chú thêm (tùy chọn)
+        public string Note { get; set; } = "";
+
+        // Danh mục (vd: "Từ vựng cơ bản", "Từ vựng chuyên ngành", ...)
+        public string Category { get; set; } = "Từ vựng cơ bản";
+
+        // Ngày thêm: mặc định = Now (có thể set khi thêm mới)
+        public DateTime AddedDate { get; set; } = DateTime.Now;
+
+        // Trạng thái đã học/chưa (checkbox bind vào property này)
+        public bool IsLearned { get; set; } = false;
+    }
+}

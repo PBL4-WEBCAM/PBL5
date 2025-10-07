@@ -1,0 +1,13 @@
+﻿# Visual Studio
+.vs/
+bin/
+obj/
+*.user
+
+# Build outputs
+*.exe
+*.dll
+
+# Maui cache
+Platforms/Android/bin/
+Platforms/Android/obj/
