@@ -1,13 +1,25 @@
-﻿# Visual Studio
-.vs/
-bin/
-obj/
-*.user
+﻿# Dependencies
+**/[Dd]ependencies/
+**/[Pp]ackages/
 
-# Build outputs
-*.exe
-*.dll
+# Toolset
+**/[Tt]ools/
 
-# Maui cache
-Platforms/Android/bin/
-Platforms/Android/obj/
+# Project-specific files
+*.csproj.user
+*.csproj.SdkResolver.*
+*.sln.docstates
+*.suo
+
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio Code files
+.vscode/
+
+# Rider files
+.idea/
+
+# Mac files
+.DS_Store

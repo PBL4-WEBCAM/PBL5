@@ -1,7 +1,8 @@
 ﻿@page "/Camera"
-@using System.Text.Json
+@using System.Text.Json.Serialization
 @inject IJSRuntime JSRuntime
 @implements IAsyncDisposable
+@using System.Text.Json
 <div class="camera-container">
     <div class="header">
         <h1>Nhận Diện Từ Vựng Bằng Camera</h1>
@@ -25,6 +26,10 @@
             <button class="btn btn-info" @onclick="ToggleAutoMode">
                 <i class="fa-solid fa-robot"></i>
                 @(isAutoMode ? "Tự Động" : "Thủ Công")
+            </button>
+            <button class="btn btn-success" @onclick="UploadAndAnalyze" disabled="@(isCameraActive == false)">
+                <i class="fa-solid fa-image"></i>
+                Tải Ảnh
             </button>
         </div>
 
@@ -539,11 +544,13 @@
 </style>
 
 @code {
+    
     // Biến trạng thái
     private bool isCameraActive = false;
     private bool isAutoMode = false;
-    private double minConfidence = 0.5;
+    private double minConfidence = 0.4;
     private DetectedObject? selectedObject = null;
+    private string lastCapturedImage = "";
 
     // Danh sách đối tượng
     private List<DetectedObject> detectedObjects = new List<DetectedObject>();
@@ -551,16 +558,10 @@
 
     // Timer cho chế độ tự động
     private Timer? autoDetectionTimer;
-    private const int AUTO_DETECTION_INTERVAL = 3000; // 3 giây
-
-    // Tham chiếu đến JS
-    private IJSObjectReference? cameraModule;
-    private DotNetObjectReference<Camerapage>? dotNetRef;
+    private const int AUTO_DETECTION_INTERVAL = 5000; // 5 giây
 
     protected override async Task OnInitializedAsync()
     {
-        dotNetRef = DotNetObjectReference.Create(this);
-
         // Khởi tạo dữ liệu mẫu
         InitializeSampleData();
     }
@@ -570,20 +571,26 @@
         // Thêm một số từ vựng đã lưu mẫu
         savedVocabulary.Add(new SavedVocabulary { Word = "Dog", Meaning = "Con chó" });
         savedVocabulary.Add(new SavedVocabulary { Word = "Cat", Meaning = "Con mèo" });
-        savedVocabulary.Add(new SavedVocabulary { Word = "Book", Meaning = "Quyển sách" });
+        savedVocabulary.Add(new SavedVocabulary { Word = "Book", Meaning = "Sách" });
     }
 
-    // HÀM QUAN TRỌNG: Khởi động camera
+    // HÀM QUAN TRỌNG: Khởi động camera (chỉ check permission)
     private async Task StartCamera()
     {
         try
         {
-            // Import module JavaScript để điều khiển camera
-            cameraModule = await JSRuntime.InvokeAsync<IJSObjectReference>(
-                "import", "./js/camera.js");
+            // Kiểm tra và xin quyền camera
+            var status = await Permissions.CheckStatusAsync<Permissions.Camera>();
+            if (status != PermissionStatus.Granted)
+            {
+                status = await Permissions.RequestAsync<Permissions.Camera>();
+            }
 
-            // Khởi động camera
-            await cameraModule.InvokeVoidAsync("startCamera", dotNetRef);
+            if (status != PermissionStatus.Granted)
+            {
+                Console.WriteLine("Không có quyền truy cập camera");
+                return;
+            }
 
             isCameraActive = true;
             StateHasChanged();
@@ -597,158 +604,189 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Lỗi khi khởi động camera: {ex.Message}");
-            // Ở đây có thể thêm thông báo lỗi cho người dùng
         }
     }
 
     // HÀM QUAN TRỌNG: Dừng camera
-    private async Task StopCamera()
+    private Task StopCamera()
     {
-        try
-        {
-            if (cameraModule != null)
-            {
-                await cameraModule.InvokeVoidAsync("stopCamera");
-            }
-
-            isCameraActive = false;
-            StopAutoDetection();
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Lỗi khi dừng camera: {ex.Message}");
-        }
+        isCameraActive = false;
+        StopAutoDetection();
+        lastCapturedImage = "";
+        StateHasChanged();
+        return Task.CompletedTask;
     }
 
     // HÀM QUAN TRỌNG: Chụp ảnh và phân tích bằng AI YOLO
     private async Task CaptureAndAnalyze()
     {
-        if (!isCameraActive || cameraModule == null) return;
+        if (!isCameraActive) return;
 
         try
         {
-            // Chụp ảnh từ camera
-            var imageData = await cameraModule.InvokeAsync<string>("captureImage");
-
-            if (!string.IsNullOrEmpty(imageData))
+            // Chụp ảnh bằng MAUI MediaPicker
+            var photo = await MediaPicker.Default.CapturePhotoAsync(new MediaPickerOptions
             {
-                // GỌI API YOLO Ở ĐÂY
-                // Đây là hàm bạn cần triển khai để gọi API YOLO của bạn
-                await CallYoloApi(imageData);
+                Title = "Chụp ảnh để nhận diện"
+            });
+
+            if (photo != null)
+            {
+                // Đọc ảnh thành base64
+                using var stream = await photo.OpenReadAsync();
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                var bytes = memoryStream.ToArray();
+                
+                // Lưu ảnh để hiển thị
+                lastCapturedImage = $"data:image/jpeg;base64,{Convert.ToBase64String(bytes)}";
+                StateHasChanged();
+
+                // GỌI API DJANGO YOLO
+                await CallDjangoYoloApi(bytes);
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Lỗi khi chụp và phân tích: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
         }
     }
-
-    // HÀM QUAN TRỌNG: Gọi API YOLO để nhận diện đối tượng
-    private async Task CallYoloApi(string imageData)
+    // HÀM MỚI: Tải ảnh lên và phân tích bằng AI YOLO
+     private async Task UploadAndAnalyze()
     {
         try
         {
-            // TẠO HTTP CLIENT ĐỂ GỌI API
+            // Dừng camera nếu đang chạy
+            if (isCameraActive)
+            {
+                isCameraActive = false;
+                StopAutoDetection();
+            }
+
+            // Sử dụng MediaPicker để chọn một ảnh từ thư viện
+            var photo = await MediaPicker.Default.PickPhotoAsync(new MediaPickerOptions
+            {
+                Title = "Chọn một ảnh để nhận diện"
+            });
+
+            if (photo != null)
+            {
+                // Đọc ảnh thành mảng byte
+                using var stream = await photo.OpenReadAsync();
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                var bytes = memoryStream.ToArray();
+                
+                // Lưu ảnh dưới dạng base64 để hiển thị trên UI
+                lastCapturedImage = $"data:image/jpeg;base64,{Convert.ToBase64String(bytes)}";
+                StateHasChanged(); // Cập nhật UI để hiển thị ảnh
+
+                // Gọi API Django YOLO để phân tích
+                await CallDjangoYoloApi(bytes);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi khi tải và phân tích ảnh: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+    }
+
+    // HÀM QUAN TRỌNG: Gọi Django API YOLO để nhận diện đối tượng
+    private async Task CallDjangoYoloApi(byte[] imageBytes)
+    {
+        try
+        {
             using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
 
             // Chuẩn bị dữ liệu gửi đi
             var content = new MultipartFormDataContent();
-
-            // Chuyển đổi base64 thành byte array
-            var imageBytes = Convert.FromBase64String(imageData.Split(',')[1]);
             var imageContent = new ByteArrayContent(imageBytes);
             imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
-
             content.Add(imageContent, "image", "capture.jpg");
 
-            // THAY ĐỔI URL NÀY THÀNH ENDPOINT API YOLO CỦA BẠN
-            var apiUrl = "http://localhost:5000/api/yolo/detect"; // URL API YOLO của bạn
+            // URL API DJANGO - THAY ĐỔI NẾU CẦN
+            var apiUrl = "http://localhost:8000/api/detect/";
 
-            // Gửi request đến API YOLO
+            Console.WriteLine($"Đang gửi request đến: {apiUrl}");
+
+            // Gửi request đến Django API
             var response = await httpClient.PostAsync(apiUrl, content);
+
+            Console.WriteLine($"Response status: {response.StatusCode}");
 
             if (response.IsSuccessStatusCode)
             {
                 var responseContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Response: {responseContent}");
 
-                // Xử lý kết quả trả về từ API YOLO
-                // Giả sử API trả về JSON với cấu trúc:
-                // { "detections": [ { "label": "dog", "confidence": 0.85, "bbox": [x,y,w,h] }, ... ] }
-
-                var detectionResult = JsonSerializer.Deserialize<YoloDetectionResult>(responseContent);
-
-                if (detectionResult?.Detections != null)
+                var options = new JsonSerializerOptions
                 {
-                    // Lọc kết quả theo độ tin cậy tối thiểu
-                    var validDetections = detectionResult.Detections
-                        .Where(d => d.Confidence >= minConfidence)
-                        .ToList();
+                    PropertyNameCaseInsensitive = true
+                };
 
-                    // Thêm vào danh sách đối tượng đã nhận diện
-                    foreach (var detection in validDetections)
+                var result = JsonSerializer.Deserialize<DjangoApiResponse>(responseContent, options);
+
+                if (result?.Success == true && result.Detections != null)
+                {
+                    Console.WriteLine($"Nhận được {result.Detections.Count} detections");
+
+                    // Xóa danh sách cũ
+                    detectedObjects.Clear();
+
+                    // Thêm đối tượng mới
+                    foreach (var detection in result.Detections)
                     {
-                        // Tạo thumbnail từ vùng detected
-                        var thumbnailUrl = await cameraModule!.InvokeAsync<string>(
-                            "cropImage", imageData, detection.Bbox);
-
-                        var detectedObject = new DetectedObject
+                        if (detection.Confidence >= minConfidence)
                         {
-                            Id = Guid.NewGuid().ToString(),
-                            Label = detection.Label,
-                            Confidence = detection.Confidence,
-                            Vocabulary = GetVocabularyForLabel(detection.Label),
-                            ThumbnailUrl = thumbnailUrl,
-                            DetectedTime = DateTime.Now
-                        };
+                            var detectedObject = new DetectedObject
+                            {
+                                Id = Guid.NewGuid().ToString(),
+                                Label = detection.Label,
+                                Confidence = detection.Confidence,
+                                Vocabulary = detection.Vocabulary,
+                                ThumbnailUrl = detection.Thumbnail,
+                                DetectedTime = DateTime.Now
+                            };
 
-                        detectedObjects.Insert(0, detectedObject);
-
-                        // Giới hạn số lượng đối tượng hiển thị
-                        if (detectedObjects.Count > 20)
-                        {
-                            detectedObjects.RemoveAt(detectedObjects.Count - 1);
+                            detectedObjects.Add(detectedObject);
+                            Console.WriteLine($"Thêm: {detection.Label} - {detection.Vocabulary}");
                         }
                     }
 
                     StateHasChanged();
                 }
+                else
+                {
+                    Console.WriteLine("Không có detection nào hoặc API trả về lỗi");
+                }
             }
             else
             {
-                Console.WriteLine($"Lỗi API: {response.StatusCode}");
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"API Error {response.StatusCode}: {errorContent}");
+                
+                // Hiển thị thông báo mẫu nếu API lỗi
+                AddSampleDetection();
             }
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"Lỗi kết nối API: {ex.Message}");
+            Console.WriteLine("Đảm bảo Django server đang chạy tại http://localhost:8000");
+            
+            // Hiển thị dữ liệu mẫu để test
+            AddSampleDetection();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Lỗi khi gọi API YOLO: {ex.Message}");
-
-            // Trong môi trường phát triển, có thể thêm dữ liệu mẫu để test
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            
             AddSampleDetection();
         }
-    }
-
-    // Hàm hỗ trợ: Chuyển đổi nhãn thành từ vựng
-    private string GetVocabularyForLabel(string label)
-    {
-        // Ánh xạ nhãn YOLO sang từ vựng
-        var vocabularyMap = new Dictionary<string, string>
-        {
-            { "person", "Người" },
-            { "dog", "Con chó" },
-            { "cat", "Con mèo" },
-            { "car", "Xe hơi" },
-            { "book", "Quyển sách" },
-            { "bottle", "Chai nước" },
-            { "chair", "Cái ghế" },
-            { "table", "Cái bàn" },
-            { "phone", "Điện thoại" },
-            { "laptop", "Máy tính xách tay" }
-        };
-
-        return vocabularyMap.ContainsKey(label.ToLower())
-            ? vocabularyMap[label.ToLower()]
-            : label;
     }
 
     // Hàm hỗ trợ: Thêm dữ liệu mẫu để test (chỉ dùng khi phát triển)
@@ -818,7 +856,6 @@
     // Cập nhật cài đặt nhận diện
     private void UpdateDetectionSettings()
     {
-        // Có thể thêm logic để cập nhật cài đặt detection
         StateHasChanged();
     }
 
@@ -860,15 +897,10 @@
     {
         await StopCamera();
         StopAutoDetection();
-        dotNetRef?.Dispose();
-
-        if (cameraModule != null)
-        {
-            await cameraModule.DisposeAsync();
-        }
     }
 
-    // Các lớp dữ liệu
+    // ============ CÁC LỚP DỮ LIỆU ============
+
     private class DetectedObject
     {
         public string Id { get; set; } = "";
@@ -885,16 +917,37 @@
         public string Meaning { get; set; } = "";
     }
 
-    // Lớp để deserialize kết quả từ API YOLO
-    private class YoloDetectionResult
+    // Lớp để deserialize response từ Django API
+    private class DjangoApiResponse
     {
-        public List<YoloDetection> Detections { get; set; } = new();
+        [JsonPropertyName("success")]
+        public bool Success { get; set; }
+        
+        [JsonPropertyName("detections")]
+        public List<DjangoDetection> Detections { get; set; } = new();
+        
+        [JsonPropertyName("total")]
+        public int Total { get; set; }
+        
+        [JsonPropertyName("error")]
+        public string? Error { get; set; }
     }
 
-    private class YoloDetection
+    private class DjangoDetection
     {
+        [JsonPropertyName("label")]
         public string Label { get; set; } = "";
+        
+        [JsonPropertyName("confidence")]
         public double Confidence { get; set; }
-        public List<double> Bbox { get; set; } = new();
+        
+        [JsonPropertyName("bbox")]
+        public List<int> Bbox { get; set; } = new();
+        
+        [JsonPropertyName("vocabulary")]
+        public string Vocabulary { get; set; } = "";
+        
+        [JsonPropertyName("thumbnail")]
+        public string Thumbnail { get; set; } = "";
     }
 }
