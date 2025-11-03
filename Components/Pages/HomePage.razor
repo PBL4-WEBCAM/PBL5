@@ -1,0 +1,463 @@
+﻿@page "/"
+
+<div class="tra-cuu-container">
+    <div class="header">
+        <h1>Tra cứu</h1>
+        <p class="author">Nguyễn Thanh Liêm</p>
+    </div>
+
+    <div class="search-section">
+        <div class="search-box">
+            <input type="text" placeholder="Nhập từ khóa cần tra cứu..." @bind="searchTerm" @oninput="OnSearch" />
+            <button @onclick="Search">
+                <i class="fa-solid fa-search"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="content-section">
+        <div class="categories">
+            <div class="category-card" @onclick="@(() => FilterByCategory("Tất cả"))">
+                <h3>Tất cả</h3>
+                <p>Xem tất cả từ vựng</p>
+            </div>
+            <div class="category-card" @onclick="@(() => FilterByCategory("Động vật"))">
+                <h3>Động vật</h3>
+                <p>Dog, cat, banana, table, ...</p>
+            </div>
+            <div class="category-card" @onclick="@(() => FilterByCategory("Máy ảnh"))">
+                <h3>Máy ảnh</h3>
+                <p>Thuật ngữ về máy ảnh</p>
+            </div>
+            <div class="category-card" @onclick="@(() => FilterByCategory("Hình ảnh"))">
+                <h3>Hình ảnh</h3>
+                <p>Thuật ngữ về hình ảnh</p>
+            </div>
+            <div class="category-card" @onclick="@(() => FilterByCategory("Từ vựng"))">
+                <h3>Từ vựng</h3>
+                <p>Từ vựng thông dụng</p>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <h2>Kết quả tra cứu</h2>
+            <div class="results">
+                @if (filteredItems.Count == 0)
+                {
+                    <p class="no-results">Không tìm thấy kết quả phù hợp.</p>
+                }
+                else
+                {
+                    @foreach (var item in filteredItems)
+                    {
+                        <div class="result-item">
+                            <div class="item-content">
+                                <h4>@item.Word</h4>
+                                <p>@item.Meaning</p>
+                                <span class="category-tag">@item.Category</span>
+                            </div>
+                            <div class="item-actions">
+                                <button class="action-btn" title="Nghe phát âm">
+                                    <i class="fa-solid fa-volume-high"></i>
+                                </button>
+                                <button class="action-btn" title="Lưu vào lịch sử">
+                                    <i class="fa-solid fa-bookmark"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="history-section">
+        <div class="section-header">
+            <h2>Lịch sử tra cứu</h2>
+            <button class="clear-btn" @onclick="ClearHistory">Xóa lịch sử</button>
+        </div>
+        <div class="history-items">
+            @if (searchHistory.Count == 0)
+            {
+                <p class="no-history">Chưa có lịch sử tra cứu.</p>
+            }
+            else
+            {
+                @foreach (var historyItem in searchHistory)
+                {
+                    <div class="history-item">
+                        <span>@historyItem</span>
+                        <button class="remove-btn" @onclick="() => RemoveFromHistory(historyItem)">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Biến màu sắc */
+    :root {
+        --primary-color: #3e67d6;
+        --secondary-color: #f1f5fd;
+        --text-color: #333;
+        --light-text: #666;
+        --border-color: #ddd;
+        --background-color: #f9f9f9;
+    }
+
+    .tra-cuu-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-color);
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+        .header h1 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            font-size: 2.5rem;
+        }
+
+    .author {
+        color: var(--light-text);
+        font-style: italic;
+        margin: 0;
+    }
+
+    .search-section {
+        margin-bottom: 30px;
+    }
+
+    .search-box {
+        display: flex;
+        max-width: 600px;
+        margin: 0 auto;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        border-radius: 50px;
+        overflow: hidden;
+    }
+
+        .search-box input {
+            flex-grow: 1;
+            padding: 15px 20px;
+            border: none;
+            font-size: 1.1rem;
+            outline: none;
+        }
+
+        .search-box button {
+            padding: 0 25px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: background-color 0.3s;
+        }
+
+            .search-box button:hover {
+                background-color: #2a4fb3;
+            }
+
+    .content-section {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 30px;
+        margin-bottom: 40px;
+    }
+
+    .categories {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .category-card {
+        background-color: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid var(--primary-color);
+    }
+
+        .category-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .category-card h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .category-card p {
+            margin-bottom: 0;
+            color: var(--light-text);
+            font-size: 0.9rem;
+        }
+
+    .results-section {
+        background-color: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+        .results-section h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+    .results {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .result-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color 0.2s;
+    }
+
+        .result-item:hover {
+            background-color: var(--secondary-color);
+        }
+
+    .item-content h4 {
+        margin: 0 0 5px 0;
+        color: var(--primary-color);
+    }
+
+    .item-content p {
+        margin: 0 0 10px 0;
+        color: var(--text-color);
+    }
+
+    .category-tag {
+        background-color: var(--secondary-color);
+        color: var(--primary-color);
+        padding: 3px 8px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+    }
+
+    .item-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .action-btn {
+        background: none;
+        border: none;
+        color: var(--light-text);
+        cursor: pointer;
+        font-size: 1rem;
+        transition: color 0.2s;
+    }
+
+        .action-btn:hover {
+            color: var(--primary-color);
+        }
+
+    .history-section {
+        background-color: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+        .section-header h2 {
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+    .clear-btn {
+        background-color: #ff6b6b;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: background-color 0.2s;
+    }
+
+        .clear-btn:hover {
+            background-color: #ff5252;
+        }
+
+    .history-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .history-item {
+        display: flex;
+        align-items: center;
+        background-color: var(--secondary-color);
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+    }
+
+    .remove-btn {
+        background: none;
+        border: none;
+        margin-left: 10px;
+        cursor: pointer;
+        color: var(--light-text);
+    }
+
+        .remove-btn:hover {
+            color: #ff5252;
+        }
+
+    .no-results, .no-history {
+        text-align: center;
+        color: var(--light-text);
+        font-style: italic;
+        padding: 30px;
+    }
+
+    /* Responsive design */
+    @@media (max-width: 768px) {
+        .content-section {
+            grid-template-columns: 1fr;
+        }
+
+        .categories {
+            flex-direction: row;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .category-card {
+            min-width: 200px;
+        }
+    }
+</style>
+
+@code {
+    private string searchTerm = "";
+    private string selectedCategory = "Tất cả";
+    private List<string> searchHistory = new List<string>();
+    private List<VocabularyItem> vocabularyItems = new List<VocabularyItem>();
+    private List<VocabularyItem> filteredItems = new List<VocabularyItem>();
+
+    protected override void OnInitialized()
+    {
+        // Khởi tạo dữ liệu mẫu
+        InitializeVocabulary();
+        filteredItems = vocabularyItems;
+
+        // Khởi tạo lịch sử tìm kiếm mẫu
+        searchHistory.Add("Dog");
+        searchHistory.Add("Cat");
+        searchHistory.Add("Table");
+    }
+
+    private void InitializeVocabulary()
+    {
+        vocabularyItems.Add(new VocabularyItem { Word = "Dog", Meaning = "Chó", Category = "Động vật" });
+        vocabularyItems.Add(new VocabularyItem { Word = "Cat", Meaning = "Mèo", Category = "Động vật" });
+        vocabularyItems.Add(new VocabularyItem { Word = "Banana", Meaning = "Chuối", Category = "Động vật" });
+        vocabularyItems.Add(new VocabularyItem { Word = "Table", Meaning = "Bàn", Category = "Động vật" });
+        vocabularyItems.Add(new VocabularyItem { Word = "Camera", Meaning = "Máy ảnh", Category = "Máy ảnh" });
+        vocabularyItems.Add(new VocabularyItem { Word = "Lens", Meaning = "Ống kính", Category = "Máy ảnh" });
+        vocabularyItems.Add(new VocabularyItem { Word = "Aperture", Meaning = "Khẩu độ", Category = "Máy ảnh" });
+        vocabularyItems.Add(new VocabularyItem { Word = "Image", Meaning = "Hình ảnh", Category = "Hình ảnh" });
+        vocabularyItems.Add(new VocabularyItem { Word = "Resolution", Meaning = "Độ phân giải", Category = "Hình ảnh" });
+        vocabularyItems.Add(new VocabularyItem { Word = "Vocabulary", Meaning = "Từ vựng", Category = "Từ vựng" });
+        vocabularyItems.Add(new VocabularyItem { Word = "Grammar", Meaning = "Ngữ pháp", Category = "Từ vựng" });
+    }
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? "";
+        FilterItems();
+    }
+
+    private void Search()
+    {
+        FilterItems();
+
+        // Thêm vào lịch sử nếu có kết quả tìm kiếm
+        if (!string.IsNullOrEmpty(searchTerm) && !searchHistory.Contains(searchTerm))
+        {
+            searchHistory.Insert(0, searchTerm);
+            // Giới hạn lịch sử tối đa 10 mục
+            if (searchHistory.Count > 10)
+            {
+                searchHistory.RemoveAt(searchHistory.Count - 1);
+            }
+        }
+    }
+
+    private void FilterByCategory(string category)
+    {
+        selectedCategory = category;
+        FilterItems();
+    }
+
+    private void FilterItems()
+    {
+        if (string.IsNullOrEmpty(searchTerm) && selectedCategory == "Tất cả")
+        {
+            filteredItems = vocabularyItems;
+        }
+        else
+        {
+            filteredItems = vocabularyItems.Where(item =>
+                (string.IsNullOrEmpty(searchTerm) ||
+                 item.Word.ToLower().Contains(searchTerm.ToLower()) ||
+                 item.Meaning.ToLower().Contains(searchTerm.ToLower())) &&
+                (selectedCategory == "Tất cả" || item.Category == selectedCategory)
+            ).ToList();
+        }
+    }
+
+    private void ClearHistory()
+    {
+        searchHistory.Clear();
+    }
+
+    private void RemoveFromHistory(string item)
+    {
+        searchHistory.Remove(item);
+    }
+
+    private class VocabularyItem
+    {
+        public string Word { get; set; } = "";
+        public string Meaning { get; set; } = "";
+        public string Category { get; set; } = "";
+    }
+}
