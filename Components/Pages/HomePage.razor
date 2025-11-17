@@ -1,4 +1,7 @@
 ﻿@page "/"
+@using PBL5.Services
+@inject JsonDatabaseService DatabaseService
+@inject IJSRuntime JSRuntime
 
 <div class="tra-cuu-container">
     <div class="header">
@@ -7,44 +10,73 @@
     </div>
 
     <div class="search-section">
-        <div class="search-box">
-            <input type="text" placeholder="Nhập từ khóa cần tra cứu..." @bind="searchTerm" @oninput="OnSearch" />
-            <button @onclick="Search">
-                <i class="fa-solid fa-search"></i>
-            </button>
+        <div class="search-box-wrapper">
+            <div class="search-box">
+                <input type="text"
+                       placeholder="Nhập từ khóa cần tra cứu..."
+                       @bind="searchTerm"
+                       @bind:event="oninput"
+                       @onfocus="OnSearchFocus"
+                       @onblur="OnSearchBlur" />
+                <button @onclick="Search">
+                    <i class="fa-solid fa-search"></i>
+                </button>
+            </div>
+
+            <!-- Dropdown gợi ý -->
+            @if (showSuggestions && suggestions.Count > 0)
+            {
+                <div class="suggestions-dropdown">
+                    @foreach (var suggestion in suggestions)
+                    {
+                        <div class="suggestion-item" @onmousedown="@(() => SelectSuggestion(suggestion))">
+                            <div class="suggestion-word">
+                                @HighlightMatch(suggestion.Word, searchTerm)
+                            </div>
+                            <div class="suggestion-meaning">@suggestion.Meaning</div>
+                            @if (!string.IsNullOrEmpty(suggestion.NotebookName))
+                            {
+                                <span class="suggestion-badge">
+                                    <i class="fa-solid fa-book"></i> @suggestion.NotebookName
+                                </span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         </div>
     </div>
 
     <div class="content-section">
+        <!-- SIDEBAR - Hiển thị các sổ tay -->
         <div class="categories">
-            <div class="category-card" @onclick="@(() => FilterByCategory("Tất cả"))">
+            <div class="category-card @(selectedNotebook == null ? "active-card" : "")"
+                 @onclick="@(() => SelectNotebook(null))">
                 <h3>Tất cả</h3>
                 <p>Xem tất cả từ vựng</p>
             </div>
-            <div class="category-card" @onclick="@(() => FilterByCategory("Động vật"))">
-                <h3>Động vật</h3>
-                <p>Dog, cat, banana, table, ...</p>
-            </div>
-            <div class="category-card" @onclick="@(() => FilterByCategory("Máy ảnh"))">
-                <h3>Máy ảnh</h3>
-                <p>Thuật ngữ về máy ảnh</p>
-            </div>
-            <div class="category-card" @onclick="@(() => FilterByCategory("Hình ảnh"))">
-                <h3>Hình ảnh</h3>
-                <p>Thuật ngữ về hình ảnh</p>
-            </div>
-            <div class="category-card" @onclick="@(() => FilterByCategory("Từ vựng"))">
-                <h3>Từ vựng</h3>
-                <p>Từ vựng thông dụng</p>
-            </div>
+
+            @foreach (var notebook in myNotebooks)
+            {
+                <div class="category-card @(selectedNotebook?.Name == notebook.Name ? "active-card" : "")"
+                     @onclick="@(() => SelectNotebook(notebook))">
+                    <h3>@notebook.Name</h3>
+                    <p>@GetNotebookDescription(notebook)</p>
+                </div>
+            }
         </div>
 
+        <!-- KẾT QUẢ TRA CỨU -->
         <div class="results-section">
             <h2>Kết quả tra cứu</h2>
             <div class="results">
-                @if (filteredItems.Count == 0)
+                @if (filteredItems.Count == 0 && !string.IsNullOrEmpty(searchTerm))
                 {
-                    <p class="no-results">Không tìm thấy kết quả phù hợp.</p>
+                    <p class="no-results">Không tìm thấy kết quả phù hợp cho "<strong>@searchTerm</strong>"</p>
+                }
+                else if (filteredItems.Count == 0)
+                {
+                    <p class="no-results">Chưa có từ vựng nào. Hãy thêm từ vựng ở trang Sổ Tay!</p>
                 }
                 else
                 {
@@ -54,14 +86,26 @@
                             <div class="item-content">
                                 <h4>@item.Word</h4>
                                 <p>@item.Meaning</p>
-                                <span class="category-tag">@item.Category</span>
+                                @if (!string.IsNullOrEmpty(item.Note))
+                                {
+                                    <p class="note-text">@item.Note</p>
+                                }
+                                <div class="tags">
+                                    <span class="category-tag">@item.Category</span>
+                                    @if (!string.IsNullOrEmpty(item.NotebookName))
+                                    {
+                                        <span class="notebook-tag">
+                                            <i class="fa-solid fa-book"></i> @item.NotebookName
+                                        </span>
+                                    }
+                                </div>
                             </div>
                             <div class="item-actions">
-                                <button class="action-btn" title="Nghe phát âm">
+                                <button class="action-btn" @onclick="() => SpeakWord(item.Word)" title="Nghe phát âm">
                                     <i class="fa-solid fa-volume-high"></i>
                                 </button>
-                                <button class="action-btn" title="Lưu vào lịch sử">
-                                    <i class="fa-solid fa-bookmark"></i>
+                                <button class="action-btn" @onclick="() => ToggleLearned(item)" title="@(item.IsLearned ? "Đã học" : "Đánh dấu đã học")">
+                                    <i class="fa-solid fa-bookmark" style="color: @(item.IsLearned ? "#f39c12" : "inherit");"></i>
                                 </button>
                             </div>
                         </div>
@@ -85,9 +129,9 @@
             {
                 @foreach (var historyItem in searchHistory)
                 {
-                    <div class="history-item">
+                    <div class="history-item" @onclick="() => SearchFromHistory(historyItem)">
                         <span>@historyItem</span>
-                        <button class="remove-btn" @onclick="() => RemoveFromHistory(historyItem)">
+                        <button class="remove-btn" @onclick="() => RemoveFromHistory(historyItem)" @onclick:stopPropagation="true">
                             <i class="fa-solid fa-times"></i>
                         </button>
                     </div>
@@ -98,7 +142,6 @@
 </div>
 
 <style>
-    /* Biến màu sắc */
     :root {
         --primary-color: #3e67d6;
         --secondary-color: #f1f5fd;
@@ -139,10 +182,14 @@
         margin-bottom: 30px;
     }
 
-    .search-box {
-        display: flex;
+    .search-box-wrapper {
+        position: relative;
         max-width: 600px;
         margin: 0 auto;
+    }
+
+    .search-box {
+        display: flex;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         border-radius: 50px;
         overflow: hidden;
@@ -170,6 +217,89 @@
                 background-color: #2a4fb3;
             }
 
+    /* Dropdown gợi ý */
+    .suggestions-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid var(--border-color);
+        border-top: none;
+        border-radius: 0 0 15px 15px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        max-height: 400px;
+        overflow-y: auto;
+        z-index: 1000;
+        margin-top: 5px;
+        animation: slideDown 0.2s ease-out;
+    }
+
+    @@keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .suggestion-item {
+        padding: 12px 20px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background-color 0.2s;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover {
+            background-color: var(--secondary-color);
+        }
+
+    .suggestion-word {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+        .suggestion-word .highlight {
+            background-color: #fff59d;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+    .suggestion-meaning {
+        font-size: 0.95rem;
+        color: var(--text-color);
+    }
+
+    .suggestion-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 4px;
+        width: fit-content;
+    }
+
+        .suggestion-badge i {
+            font-size: 0.65rem;
+        }
+
     .content-section {
         display: grid;
         grid-template-columns: 300px 1fr;
@@ -189,7 +319,7 @@
         padding: 20px;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
+        transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
         border-left: 4px solid var(--primary-color);
     }
 
@@ -198,15 +328,23 @@
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
 
+        .category-card.active-card {
+            background-color: var(--secondary-color);
+            border-left-width: 6px;
+        }
+
         .category-card h3 {
             margin-top: 0;
+            margin-bottom: 8px;
             color: var(--primary-color);
+            font-size: 1.2rem;
         }
 
         .category-card p {
             margin-bottom: 0;
             color: var(--light-text);
             font-size: 0.9rem;
+            line-height: 1.4;
         }
 
     .results-section {
@@ -231,7 +369,7 @@
     .result-item {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         padding: 15px;
         border-bottom: 1px solid var(--border-color);
         transition: background-color 0.2s;
@@ -241,40 +379,82 @@
             background-color: var(--secondary-color);
         }
 
-    .item-content h4 {
-        margin: 0 0 5px 0;
-        color: var(--primary-color);
+    .item-content {
+        flex: 1;
     }
 
-    .item-content p {
-        margin: 0 0 10px 0;
-        color: var(--text-color);
+        .item-content h4 {
+            margin: 0 0 8px 0;
+            color: var(--primary-color);
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .item-content p {
+            margin: 0 0 8px 0;
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+
+    .note-text {
+        font-style: italic;
+        color: var(--light-text);
+        font-size: 0.9rem;
+    }
+
+    .tags {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 8px;
     }
 
     .category-tag {
-        background-color: var(--secondary-color);
-        color: var(--primary-color);
-        padding: 3px 8px;
+        background-color: #e3f2fd;
+        color: #1976d2;
+        padding: 4px 10px;
         border-radius: 15px;
         font-size: 0.8rem;
+        font-weight: 600;
     }
+
+    .notebook-tag {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        padding: 4px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+        .notebook-tag i {
+            font-size: 0.7rem;
+        }
 
     .item-actions {
         display: flex;
         gap: 10px;
+        align-items: center;
     }
 
     .action-btn {
+        width: 40px;
+        height: 40px;
         background: none;
         border: none;
         color: var(--light-text);
         cursor: pointer;
-        font-size: 1rem;
-        transition: color 0.2s;
+        font-size: 1.1rem;
+        border-radius: 50%;
+        transition: color 0.2s, background-color 0.2s;
     }
 
         .action-btn:hover {
             color: var(--primary-color);
+            background-color: var(--secondary-color);
         }
 
     .history-section {
@@ -326,7 +506,13 @@
         padding: 8px 15px;
         border-radius: 20px;
         font-size: 0.9rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
     }
+
+        .history-item:hover {
+            background-color: #d5e3f7;
+        }
 
     .remove-btn {
         background: none;
@@ -334,6 +520,7 @@
         margin-left: 10px;
         cursor: pointer;
         color: var(--light-text);
+        padding: 2px;
     }
 
         .remove-btn:hover {
@@ -347,7 +534,6 @@
         padding: 30px;
     }
 
-    /* Responsive design */
     @@media (max-width: 768px) {
         .content-section {
             grid-template-columns: 1fr;
@@ -362,58 +548,179 @@
         .category-card {
             min-width: 200px;
         }
+
+        .suggestions-dropdown {
+            max-height: 300px;
+        }
     }
 </style>
 
 @code {
-    private string searchTerm = "";
-    private string selectedCategory = "Tất cả";
-    private List<string> searchHistory = new List<string>();
-    private List<VocabularyItem> vocabularyItems = new List<VocabularyItem>();
+    private List<VocabularyItem> allVocabulary = new List<VocabularyItem>();
+    private List<Notebook> myNotebooks = new List<Notebook>();
     private List<VocabularyItem> filteredItems = new List<VocabularyItem>();
+    private List<VocabularyItem> suggestions = new List<VocabularyItem>();
 
-    protected override void OnInitialized()
+    private Notebook? selectedNotebook = null;
+    private string searchTerm = "";
+    private List<string> searchHistory = new List<string>();
+    private bool showSuggestions = false;
+
+    protected override async Task OnInitializedAsync()
     {
-        // Khởi tạo dữ liệu mẫu
-        InitializeVocabulary();
-        filteredItems = vocabularyItems;
-
-        // Khởi tạo lịch sử tìm kiếm mẫu
-        searchHistory.Add("Dog");
-        searchHistory.Add("Cat");
-        searchHistory.Add("Table");
-    }
-
-    private void InitializeVocabulary()
-    {
-        vocabularyItems.Add(new VocabularyItem { Word = "Dog", Meaning = "Chó", Category = "Động vật" });
-        vocabularyItems.Add(new VocabularyItem { Word = "Cat", Meaning = "Mèo", Category = "Động vật" });
-        vocabularyItems.Add(new VocabularyItem { Word = "Banana", Meaning = "Chuối", Category = "Động vật" });
-        vocabularyItems.Add(new VocabularyItem { Word = "Table", Meaning = "Bàn", Category = "Động vật" });
-        vocabularyItems.Add(new VocabularyItem { Word = "Camera", Meaning = "Máy ảnh", Category = "Máy ảnh" });
-        vocabularyItems.Add(new VocabularyItem { Word = "Lens", Meaning = "Ống kính", Category = "Máy ảnh" });
-        vocabularyItems.Add(new VocabularyItem { Word = "Aperture", Meaning = "Khẩu độ", Category = "Máy ảnh" });
-        vocabularyItems.Add(new VocabularyItem { Word = "Image", Meaning = "Hình ảnh", Category = "Hình ảnh" });
-        vocabularyItems.Add(new VocabularyItem { Word = "Resolution", Meaning = "Độ phân giải", Category = "Hình ảnh" });
-        vocabularyItems.Add(new VocabularyItem { Word = "Vocabulary", Meaning = "Từ vựng", Category = "Từ vựng" });
-        vocabularyItems.Add(new VocabularyItem { Word = "Grammar", Meaning = "Ngữ pháp", Category = "Từ vựng" });
-    }
-
-    private void OnSearch(ChangeEventArgs e)
-    {
-        searchTerm = e.Value?.ToString() ?? "";
+        await LoadData();
         FilterItems();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            allVocabulary = await DatabaseService.LoadVocabularyAsync();
+            myNotebooks = await DatabaseService.LoadNotebooksAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi khi load dữ liệu: {ex.Message}");
+        }
+    }
+
+    private string GetNotebookDescription(Notebook notebook)
+    {
+        var count = allVocabulary.Count(v => v.NotebookName == notebook.Name);
+
+        if (count == 0)
+        {
+            return string.IsNullOrEmpty(notebook.Description)
+                ? "Chưa có từ vựng"
+                : notebook.Description;
+        }
+
+        var words = allVocabulary
+            .Where(v => v.NotebookName == notebook.Name)
+            .Take(3)
+            .Select(v => v.Word);
+
+        var description = string.Join(", ", words);
+
+        if (count > 3)
+        {
+            description += ", ...";
+        }
+
+        return description;
+    }
+
+    private void SelectNotebook(Notebook? notebook)
+    {
+        selectedNotebook = notebook;
+        FilterItems();
+        UpdateSuggestions();
     }
 
     private void Search()
     {
         FilterItems();
 
-        // Thêm vào lịch sử nếu có kết quả tìm kiếm
         if (!string.IsNullOrEmpty(searchTerm) && !searchHistory.Contains(searchTerm))
         {
             searchHistory.Insert(0, searchTerm);
-            // Giới hạn lịch sử tối đa 10 mục
+            if (searchHistory.Count > 10)
+            {
+                searchHistory.RemoveAt(searchHistory.Count - 1);
+            }
+        }
+
+        showSuggestions = false;
+    }
+
+    private void FilterItems()
+    {
+        var results = allVocabulary.AsEnumerable();
+
+        if (selectedNotebook != null)
+        {
+            results = results.Where(r => r.NotebookName == selectedNotebook.Name);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            results = results.Where(r =>
+                r.Word.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                r.Meaning.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(r.Note) && r.Note.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        filteredItems = results.OrderByDescending(r => r.AddedDate).ToList();
+
+        // Cập nhật gợi ý khi tìm kiếm
+        UpdateSuggestions();
+    }
+
+    private void UpdateSuggestions()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 1)
+        {
+            suggestions.Clear();
+            showSuggestions = false;
+            return;
+        }
+
+        var results = allVocabulary.AsEnumerable();
+
+        // Lọc theo sổ tay nếu có
+        if (selectedNotebook != null)
+        {
+            results = results.Where(r => r.NotebookName == selectedNotebook.Name);
+        }
+
+        // Tìm các từ khớp với từ khóa
+        suggestions = results
+            .Where(r =>
+                r.Word.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                r.Meaning.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(r =>
+            {
+                // Ưu tiên từ bắt đầu bằng từ khóa
+                if (r.Word.StartsWith(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    return 0;
+                else if (r.Meaning.StartsWith(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    return 1;
+                else
+                    return 2;
+            })
+            .ThenBy(r => r.Word.Length)
+            .Take(8)
+            .ToList();
+
+        showSuggestions = suggestions.Count > 0;
+    }
+
+    private MarkupString HighlightMatch(string text, string searchText)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+            return (MarkupString)text;
+
+        var index = text.IndexOf(searchText, StringComparison.OrdinalIgnoreCase);
+        if (index == -1)
+            return (MarkupString)text;
+
+        var beforeMatch = text.Substring(0, index);
+        var match = text.Substring(index, searchText.Length);
+        var afterMatch = text.Substring(index + searchText.Length);
+
+        return (MarkupString)$"{beforeMatch}<span class=\"highlight\">{match}</span>{afterMatch}";
+    }
+
+    private void SelectSuggestion(VocabularyItem item)
+    {
+        searchTerm = item.Word;
+        showSuggestions = false;
+        FilterItems();
+
+        if (!searchHistory.Contains(searchTerm))
+        {
+            searchHistory.Insert(0, searchTerm);
             if (searchHistory.Count > 10)
             {
                 searchHistory.RemoveAt(searchHistory.Count - 1);
@@ -421,27 +728,57 @@
         }
     }
 
-    private void FilterByCategory(string category)
+    private void OnSearchFocus()
     {
-        selectedCategory = category;
-        FilterItems();
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            UpdateSuggestions();
+        }
     }
 
-    private void FilterItems()
+    private void OnSearchBlur()
     {
-        if (string.IsNullOrEmpty(searchTerm) && selectedCategory == "Tất cả")
+        // Delay để cho phép click vào suggestion trước khi ẩn
+        Task.Delay(100).ContinueWith(_ =>
         {
-            filteredItems = vocabularyItems;
-        }
-        else
+            InvokeAsync(() =>
+            {
+                showSuggestions = false;
+                StateHasChanged();
+            });
+        });
+    }
+
+    private void SearchFromHistory(string term)
+    {
+        searchTerm = term;
+        Search();
+    }
+
+    private async Task SpeakWord(string word)
+    {
+        try
         {
-            filteredItems = vocabularyItems.Where(item =>
-                (string.IsNullOrEmpty(searchTerm) ||
-                 item.Word.ToLower().Contains(searchTerm.ToLower()) ||
-                 item.Meaning.ToLower().Contains(searchTerm.ToLower())) &&
-                (selectedCategory == "Tất cả" || item.Category == selectedCategory)
-            ).ToList();
+            await JSRuntime.InvokeVoidAsync("eval", $@"
+                if ('speechSynthesis' in window) {{
+                    const utterance = new SpeechSynthesisUtterance('{word}');
+                    utterance.lang = 'en-US';
+                    utterance.rate = 0.8;
+                    window.speechSynthesis.speak(utterance);
+                }}
+            ");
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi khi phát âm: {ex.Message}");
+        }
+    }
+
+    private async Task ToggleLearned(VocabularyItem item)
+    {
+        item.IsLearned = !item.IsLearned;
+        await DatabaseService.SaveVocabularyAsync(allVocabulary);
+        StateHasChanged();
     }
 
     private void ClearHistory()
@@ -452,12 +789,5 @@
     private void RemoveFromHistory(string item)
     {
         searchHistory.Remove(item);
-    }
-
-    private class VocabularyItem
-    {
-        public string Word { get; set; } = "";
-        public string Meaning { get; set; } = "";
-        public string Category { get; set; } = "";
     }
 }

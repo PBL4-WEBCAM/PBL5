@@ -5,11 +5,6 @@ VisualStudioVersion = 17.14.36518.9
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PBL5", "PBL5.csproj", "{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Models", "Models", "{1E1EDA4C-537C-49B2-B8E5-024214A9C6F1}"
-	ProjectSection(SolutionItems) = preProject
-		VocabularyModels.cs = VocabularyModels.cs
-	EndProjectSection
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Service", "Service", "{E90085C3-CA57-45FA-A794-EA53060E6F37}"
 	ProjectSection(SolutionItems) = preProject
 		JsonDatabaseService.cs = JsonDatabaseService.cs

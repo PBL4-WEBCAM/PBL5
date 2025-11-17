@@ -3,32 +3,36 @@
   "WorkspaceRootPath": "C:\\Users\\Admin\\Music\\PBL5-main\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\components\\pages\\notepage.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:components\\pages\\notepage.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\wwwroot\\data\\notebook.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:wwwroot\\data\\notebook.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\jsondatabaseservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:jsondatabaseservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\wwwroot\\data\\vocabulary.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:wwwroot\\data\\vocabulary.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\mauiprogram.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:mauiprogram.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\wwwroot\\index.html||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:wwwroot\\index.html||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\components\\pages\\translatepage.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:components\\pages\\translatepage.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\wwwroot\\js\\speech-recognition.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:wwwroot\\js\\speech-recognition.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\components\\pages\\homepage.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:components\\pages\\homepage.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\components\\pages\\notepage.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:components\\pages\\notepage.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\vocabularymodels.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:vocabularymodels.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\mauiprogram.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:mauiprogram.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|c:\\users\\admin\\music\\pbl5-main\\components\\pages\\camerapage.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{D93C7C58-BE22-47B9-ADA9-FC039C23CF54}|PBL5.csproj|solutionrelative:components\\pages\\camerapage.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     }
   ],
   "DocumentGroupContainers": [
@@ -38,97 +42,115 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 1,
           "Children": [
             {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "vocabulary.json",
-              "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\wwwroot\\Data\\vocabulary.json",
-              "RelativeDocumentMoniker": "wwwroot\\Data\\vocabulary.json",
-              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\wwwroot\\Data\\vocabulary.json",
-              "RelativeToolTip": "wwwroot\\Data\\vocabulary.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-11-03T11:54:16.924Z",
-              "EditorCaption": ""
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "Notebook.json",
-              "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\wwwroot\\Data\\Notebook.json",
-              "RelativeDocumentMoniker": "wwwroot\\Data\\Notebook.json",
-              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\wwwroot\\Data\\Notebook.json",
-              "RelativeToolTip": "wwwroot\\Data\\Notebook.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-11-03T11:54:15.02Z",
+              "DocumentIndex": 0,
+              "Title": "index.html",
+              "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\wwwroot\\index.html",
+              "RelativeDocumentMoniker": "wwwroot\\index.html",
+              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\wwwroot\\index.html",
+              "RelativeToolTip": "wwwroot\\index.html",
+              "ViewState": "AgIAABgAAAAAAAAAAAAAABUAAAAeAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001512|",
+              "WhenOpened": "2025-11-16T20:56:19.798Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "JsonDatabaseService.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\JsonDatabaseService.cs",
-              "RelativeDocumentMoniker": "JsonDatabaseService.cs",
-              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\JsonDatabaseService.cs",
-              "RelativeToolTip": "JsonDatabaseService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAqAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-10-27T05:39:37.362Z",
+              "Title": "speech-recognition.js",
+              "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\wwwroot\\js\\speech-recognition.js",
+              "RelativeDocumentMoniker": "wwwroot\\js\\speech-recognition.js",
+              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\wwwroot\\js\\speech-recognition.js",
+              "RelativeToolTip": "wwwroot\\js\\speech-recognition.js",
+              "ViewState": "AgIAADoAAAAAAAAAAAAowGsAAAACAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2025-11-16T20:54:37.493Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
+              "Title": "TranslatePage.razor",
+              "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\TranslatePage.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\TranslatePage.razor",
+              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\TranslatePage.razor",
+              "RelativeToolTip": "Components\\Pages\\TranslatePage.razor",
+              "ViewState": "AgIAAAQAAAAAAAAAAAAAABAAAAAfAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-11-16T20:45:27.297Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
               "Title": "NotePage.razor",
               "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\NotePage.razor",
               "RelativeDocumentMoniker": "Components\\Pages\\NotePage.razor",
-              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\NotePage.razor*",
-              "RelativeToolTip": "Components\\Pages\\NotePage.razor*",
-              "ViewState": "AgIAAJgAAAAAAAAAAAAAAKEAAAAwAAAAAAAAAA==",
+              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\NotePage.razor",
+              "RelativeToolTip": "Components\\Pages\\NotePage.razor",
+              "ViewState": "AgIAAJAAAAAAAAAAAAAAAJsAAAAWAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
               "WhenOpened": "2025-10-27T05:10:22.253Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "TranslatePage.razor",
-              "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\TranslatePage.razor",
-              "RelativeDocumentMoniker": "Components\\Pages\\TranslatePage.razor",
-              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\TranslatePage.razor",
-              "RelativeToolTip": "Components\\Pages\\TranslatePage.razor",
-              "ViewState": "AgIAAMABAAAAAAAAAAAQwNEBAAAFAAAAAAAAAA==",
+              "DocumentIndex": 3,
+              "Title": "HomePage.razor",
+              "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\HomePage.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\HomePage.razor",
+              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\HomePage.razor",
+              "RelativeToolTip": "Components\\Pages\\HomePage.razor",
+              "ViewState": "AgIAAOMCAAAAAAAAAAAYwOUCAAAWAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-02T18:24:22.096Z",
+              "WhenOpened": "2025-11-16T19:15:33.905Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 7,
+              "Title": "Camerapage.razor",
+              "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\Camerapage.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Camerapage.razor",
+              "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\Components\\Pages\\Camerapage.razor",
+              "RelativeToolTip": "Components\\Pages\\Camerapage.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-11-16T19:15:31.123Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
               "Title": "MauiProgram.cs",
               "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\MauiProgram.cs",
               "RelativeDocumentMoniker": "MauiProgram.cs",
               "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\MauiProgram.cs",
               "RelativeToolTip": "MauiProgram.cs",
-              "ViewState": "AgIAAAgAAAAAAAAAAAAQwBIAAABPAAAAAAAAAA==",
+              "ViewState": "AgIAAAcAAAAAAAAAAAAxwBIAAABPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-11-02T18:33:46.787Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 5,
               "Title": "VocabularyModels.cs",
               "DocumentMoniker": "C:\\Users\\Admin\\Music\\PBL5-main\\VocabularyModels.cs",
               "RelativeDocumentMoniker": "VocabularyModels.cs",
               "ToolTip": "C:\\Users\\Admin\\Music\\PBL5-main\\VocabularyModels.cs",
               "RelativeToolTip": "VocabularyModels.cs",
-              "ViewState": "AgIAAAkAAAAAAAAAAAAowDgAAAAHAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAADgAAAAHAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-10-27T05:01:11.362Z"
+              "WhenOpened": "2025-10-27T05:01:11.362Z",
+              "EditorCaption": ""
             }
           ]
         },

@@ -15,7 +15,7 @@
 
 <body>
 
-    <div class="status-bar-safe-area"></div>
+    <!--<div class="status-bar-safe-area"></div>-->
 
     <div id="app">Loading...</div>
 
@@ -27,6 +27,40 @@
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>
 
+
+    <div class="status-bar-safe-area"></div>
+
+    <!--<div id="app">
+        <div style="position:absolute; top:30vh; width:100%; text-align:center;">
+            <div style="display:inline-block; padding:20px;">
+                <div style="width:60px; height:60px; border:8px solid #3e67d6; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></div>
+                <p style="margin-top:20px; color:#666; font-size:18px;">Đang tải...</p>
+            </div>
+        </div>
+    </div>-->
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+
+    <!-- Speech Recognition Script -->
+    <script src="js/speech-recognition.js"></script>
+
+    <script>
+        // Animation cho loading
+        const style = document.createElement('style');
+        style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+        document.head.appendChild(style);
+    </script>
 </body>
 
 </html>

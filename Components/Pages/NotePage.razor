@@ -1,95 +1,67 @@
-﻿@* @page directive: định tuyến cho component này — khi truy cập "/weather" sẽ render component này *@
-@page "/Note"
+﻿@page "/Note"
 @using PBL5.Services
 @inject JsonDatabaseService DatabaseService
 
-<!-- Wrapper chính chứa toàn bộ trang "Sổ Tay" -->
 <div class="notebook-container">
-    <!-- Header: tiêu đề trang và tên tác giả -->
     <div class="header">
-        <h1>Số Tay</h1>
+        <h1>Sổ Tay</h1>
         <p class="author">Nguyễn Thanh Liêm</p>
     </div>
 
-    <!-- Nội dung chính của sổ tay: sidebar + main content -->
     <div class="notebook-content">
-        <!-- SIDEBAR: cột bên trái chứa các danh mục và danh sách "sổ tay của tôi" -->
+        <!-- SIDEBAR -->
         <div id="sidebar">
-            <!-- Phần danh mục (category) -->
+            <!-- Sổ tay của tôi -->
             <div class="sidebar-section-weather">
-                <h3>Danh mục</h3>
-                <ul class="category-list">
-                    <!--
-                        .category-item:
-                        - Hiển thị một mục danh mục (vd: "Tất cả", "Từ vựng cơ bản", ...)
-                        - @onclick gọi hàm SetActiveCategory(...) để lọc danh sách theo danh mục.
-                        Lưu ý: @onclick ở đây gắn với lambda sẽ gọi phương thức C# khi click.
-                    -->
-                    <li class="category-item active" @onclick="@(() => SetActiveCategory("Tất cả"))">
+                <h3>Sổ tay của tôi</h3>
+                <ul class="notebook-list">
+                    <li class="notebook-item @(selectedNotebookName == "Tất cả" ? "active" : "")"
+                        @onclick="@(() => SetActiveNotebook("Tất cả"))">
                         <span>Tất cả</span>
-                        <!-- Gọi hàm C# GetTotalVocabularyCount() để hiển thị tổng số từ -->
                         <span class="count">@GetTotalVocabularyCount()</span>
                     </li>
-
-                    <!-- Mỗi <li> tương ứng 1 danh mục cụ thể; khi click sẽ set active category -->
-                    <li class="category-item" @onclick="@(() => SetActiveCategory("Từ vựng cơ bản"))">
-                        <span>Từ vựng cơ bản</span>
-                        <span class="count">@GetCategoryCount("Từ vựng cơ bản")</span>
-                    </li>
-
-                    <li class="category-item" @onclick="@(() => SetActiveCategory("Từ vựng chuyên ngành"))">
-                        <span>Từ vựng chuyên ngành</span>
-                        <span class="count">@GetCategoryCount("Từ vựng chuyên ngành")</span>
-                    </li>
-
-                    <li class="category-item" @onclick="@(() => SetActiveCategory("Từ vựng về đồ vật"))">
-                        <span>Từ vựng về đồ vật</span>
-                        <span class="count">@GetCategoryCount("Từ vựng về đồ vật")</span>
-                    </li>
-
-                </ul>
-            </div>
-
-            <!-- Phần "Sổ tay của tôi": hiển thị các bộ sổ tay hoặc nhóm (ở đây chỉ demo 2 nhóm) -->
-            <div class="sidebar-section-weather">
-                <h3>Số tay của tôi</h3>
-                <ul class="notebook-list">
-                    <!-- Hiển thị danh sách sổ tay -->
                     @foreach (var notebook in myNotebooks)
                     {
-                        <li class="notebook-item @(selectedNotebookName == notebook.Name ? "active" : "")" @onclick="@(() => SetActiveNotebook(notebook.Name))">
-                            <span>@notebook.Name</span>
-                            <span class="count">@personalVocabulary.Count(w => w.NotebookName == notebook.Name)</span>
+                        <li class="notebook-item @(selectedNotebookName == notebook.Name ? "active" : "")"
+                            style="position: relative; padding-right: 35px;">
+                            <span @onclick="@(() => SetActiveNotebook(notebook.Name))" style="flex: 1; cursor: pointer;">
+                                @notebook.Name
+                            </span>
+                            <span class="count" @onclick="@(() => SetActiveNotebook(notebook.Name))" style="cursor: pointer;">
+                                @GetNotebookCount(notebook.Name)
+                            </span>
+                            <button @onclick="@(() => DeleteNotebook(notebook))"
+                                    @onclick:stopPropagation="true"
+                                    title="Xóa sổ tay"
+                                    style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+                                           background: none; border: none; color: #f44336; cursor: pointer;
+                                           padding: 5px; font-size: 0.9rem; opacity: 0.7; transition: opacity 0.2s;"
+                                    onmouseover="this.style.opacity='1'"
+                                    onmouseout="this.style.opacity='0.7'">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
                         </li>
                     }
                 </ul>
             </div>
 
-            <!-- Nút tạo sổ tay mới: gọi ShowCreateNotebookModal để mở modal tạo sổ tay -->
             <button class="create-notebook-btn" @onclick="ShowCreateNotebookModal">
                 <i class="fa-solid fa-plus"></i>
-                Tạo số tay mới
+                Tạo sổ tay mới
             </button>
         </div>
 
-        <!-- MAIN CONTENT: phần hiển thị danh sách từ vựng và các thao tác thêm/sửa/xóa -->
+        <!-- MAIN CONTENT -->
         <div class="main-content">
-            <!-- Header nhỏ trong main: tiêu đề danh sách và nút thêm từ vựng -->
             <div class="vocabulary-header">
                 <h2>Từ vựng của tôi</h2>
-                <!-- Nút thêm: khi click sẽ mở modal thêm từ vựng -->
                 <button class="add-vocab-btn" @onclick="ShowAddVocabularyModal">
                     <i class="fa-solid fa-plus"></i>
                     Thêm từ vựng
                 </button>
             </div>
 
-            <!-- VÙNG HIỂN THỊ DANH SÁCH TỪ -->
             <div class="vocabulary-list">
-                <!--
-                    Nếu filteredVocabulary rỗng -> hiển thị trạng thái empty.
-                    filteredVocabulary được cập nhật khi đổi danh mục (SetActiveCategory).
-                -->
                 @if (filteredVocabulary.Count == 0)
                 {
                     <div class="empty-state">
@@ -99,47 +71,38 @@
                 }
                 else
                 {
-                    <!-- Nếu có phần tử thì duyệt và render từng item -->
                     @foreach (var item in filteredVocabulary)
                     {
-                        <!-- Mỗi "vocabulary-item" tương ứng 1 từ vựng -->
                         <div class="vocabulary-item">
-                            <!-- Checkbox: @bind hai chiều với item.IsLearned
-                                 => khi toggle sẽ cập nhật property trong object và UI re-render -->
                             <div class="item-checkbox">
-                                <input type="checkbox" @bind="item.IsLearned" />
+                                <input type="checkbox" @bind="item.IsLearned" @bind:after="SaveVocabularyDataAsync" />
                             </div>
 
-                            <!-- Nội dung chính của từ -->
                             <div class="item-content">
-                                <!-- Từ (word) -> hiển thị lớn, màu chủ đạo -->
                                 <div class="word">@item.Word</div>
-
-                                <!-- Nghĩa của từ -->
                                 <div class="meaning">@item.Meaning</div>
 
-                                <!-- Nếu có ghi chú (note) thì hiển thị -->
                                 @if (!string.IsNullOrEmpty(item.Note))
                                 {
                                     <div class="note">@item.Note</div>
                                 }
 
-                                <!-- Meta: danh mục và ngày thêm -->
                                 <div class="item-meta">
                                     <span class="category">@item.Category</span>
-                                    <!-- Định dạng ngày dd/MM/yyyy khi hiển thị -->
+                                    @if (!string.IsNullOrEmpty(item.NotebookName))
+                                    {
+                                        <span class="category" style="background-color: #e8f5e9; color: #2e7d32;">
+                                            <i class="fa-solid fa-book" style="font-size: 0.7rem;"></i> @item.NotebookName
+                                        </span>
+                                    }
                                     <span class="date">@item.AddedDate.ToString("dd/MM/yyyy")</span>
                                 </div>
                             </div>
 
-                            <!-- Các nút hành động trên mỗi item: sửa và xóa -->
                             <div class="item-actions">
-                                <!-- Button Sửa: gọi EditVocabulary(item) truyền object để sửa -->
                                 <button class="action-btn" @onclick="() => EditVocabulary(item)" title="Sửa">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
-
-                                <!-- Button Xóa: gọi DeleteVocabulary(item) để remove khỏi list -->
                                 <button class="action-btn delete" @onclick="() => DeleteVocabulary(item)" title="Xóa">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
@@ -152,61 +115,59 @@
     </div>
 </div>
 
-<!-- ===========================
-     MODAL: Thêm / Sửa từ vựng
-     - Hiển thị khi showVocabularyModal == true
-     - Dữ liệu form liên kết 2 chiều (@bind) với newVocabulary (model tạm)
-     =========================== -->
+<!-- MODAL: Thêm / Sửa từ vựng -->
 @if (showVocabularyModal)
 {
-    <div class="modal-overlay">
-        <div class="modal">
+    <div class="modal-overlay" @onclick="CloseVocabularyModal">
+        <div class="modal" @onclick:stopPropagation="true">
             <div class="modal-header">
-                <!-- Tiêu đề động: nếu đang edit (editingVocabulary != null) thì hiển thị "Sửa"... -->
                 <h3>@(editingVocabulary == null ? "Thêm từ vựng" : "Sửa từ vựng")</h3>
-
-                <!-- Nút đóng modal: gọi CloseVocabularyModal -->
                 <button class="close-btn" @onclick="CloseVocabularyModal">
                     <i class="fa-solid fa-times"></i>
                 </button>
             </div>
 
-            <!-- Modal body: form nhập liệu -->
             <div class="modal-body">
-                <!-- Từ -->
                 <div class="form-group">
-                    <label for="word">Từ:</label>
-                    <!-- @bind="newVocabulary.Word": bind 2 chiều -> cập nhật newVocabulary khi user gõ -->
-                    <input id="word" type="text" @bind="newVocabulary.Word" placeholder="Nhập từ vựng" />
+                    <label for="word">Từ: <span style="color: #f44336;">*</span></label>
+                    <input id="word" type="text" @bind="newVocabulary.Word"
+                           placeholder="Nhập từ vựng"
+                           style="@(showWordError ? "border-color: #f44336;" : "")" />
+                    @if (showWordError)
+                    {
+                        <small style="color: #f44336; font-size: 0.85rem;">Vui lòng nhập từ vựng</small>
+                    }
                 </div>
 
-                <!-- Nghĩa -->
                 <div class="form-group">
-                    <label for="meaning">Nghĩa của từ:</label>
-                    <input id="meaning" type="text" @bind="newVocabulary.Meaning" placeholder="Nhập nghĩa" />
+                    <label for="meaning">Nghĩa của từ: <span style="color: #f44336;">*</span></label>
+                    <input id="meaning" type="text" @bind="newVocabulary.Meaning"
+                           placeholder="Nhập nghĩa"
+                           style="@(showMeaningError ? "border-color: #f44336;" : "")" />
+                    @if (showMeaningError)
+                    {
+                        <small style="color: #f44336; font-size: 0.85rem;">Vui lòng nhập nghĩa của từ</small>
+                    }
                 </div>
 
-                <!-- Ghi chú (tùy chọn) -->
                 <div class="form-group">
                     <label for="note">Ghi chú:</label>
                     <textarea id="note" @bind="newVocabulary.Note" placeholder="Nhập ghi chú (tùy chọn)"></textarea>
                 </div>
 
-                <!-- Danh mục: select bind với newVocabulary.Category -->
-                <div class="form-group">
-                    <label for="category">Danh mục:</label>
-                    <select id="category" @bind="newVocabulary.Category">
-                        <option value="Từ vựng cơ bản">Từ vựng cơ bản</option>
-                        <option value="Từ vựng chuyên ngành">Từ vựng chuyên ngành</option>
-                        <option value="Từ vựng về đồ vật">Từ vựng về đồ vật</option>
-                    </select>
-                </div>
+                @* <div class="form-group"> *@
+                @*     <label for="category">Danh mục: <span style="color: #f44336;">*</span></label> *@
+                @*     <select id="category" @bind="newVocabulary.Category"> *@
+                @*         <option value="Từ vựng cơ bản">Từ vựng cơ bản</option> *@
+                @*         <option value="Từ vựng chuyên ngành">Từ vựng chuyên ngành</option> *@
+                @*         <option value="Từ vựng về đồ vật">Từ vựng về đồ vật</option> *@
+                @*     </select> *@
+                @* </div> *@
 
-                <!-- Sổ tay: select bind với newVocabulary.NotebookName -->
                 <div class="form-group">
                     <label for="notebook-select">Sổ tay:</label>
                     <select id="notebook-select" @bind="newVocabulary.NotebookName">
-                        <option value="">Không có</option>
+                        <option value="">-- Không chọn sổ tay --</option>
                         @foreach (var notebook in myNotebooks)
                         {
                             <option value="@notebook.Name">@notebook.Name</option>
@@ -215,51 +176,82 @@
                 </div>
             </div>
 
-            <!-- Footer modal: Hủy hoặc Xác nhận -->
             <div class="modal-footer">
                 <button class="btn btn-cancel" @onclick="CloseVocabularyModal">Hủy</button>
-                <!-- Save: gọi SaveVocabulary để validate và thêm/cập nhật danh sách -->
-                <button class="btn btn-confirm" @onclick="SaveVocabulary">Xong</button>
+                <button class="btn btn-confirm" @onclick="SaveVocabulary" disabled="@isSaving">
+                    @if (isSaving)
+                    {
+                        <span>Đang lưu...</span>
+                    }
+                    else
+                    {
+                        <span>Xong</span>
+                    }
+                </button>
             </div>
         </div>
     </div>
 }
 
-<!-- ===========================
-     MODAL: Tạo sổ tay mới (showNotebookModal)
-     - Giống modal trước nhưng phục vụ tạo sổ tay (chỉ demo, chưa lưu danh sách sổ tay)
-     =========================== -->
+<!-- MODAL: Tạo sổ tay mới -->
 @if (showNotebookModal)
 {
-    <div class="modal-overlay">
-        <div class="modal">
+    <div class="modal-overlay" @onclick="CloseNotebookModal">
+        <div class="modal" @onclick:stopPropagation="true">
             <div class="modal-header">
-                <h3>Tạo số tay mới</h3>
+                <h3>Tạo sổ tay mới</h3>
                 <button class="close-btn" @onclick="CloseNotebookModal">
                     <i class="fa-solid fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="notebook-name">Tên số tay:</label>
-                    <!-- @bind với newNotebookName -->
-                    <input id="notebook-name" type="text" @bind="newNotebookName" placeholder="Nhập tên số tay" />
+                    <label for="notebook-name">Tên sổ tay: <span style="color: #f44336;">*</span></label>
+                    <input id="notebook-name" type="text" @bind="newNotebookName"
+                           placeholder="Nhập tên sổ tay"
+                           style="@(showNotebookNameError ? "border-color: #f44336;" : "")" />
+                    @if (showNotebookNameError)
+                    {
+                        <small style="color: #f44336; font-size: 0.85rem;">Vui lòng nhập tên sổ tay</small>
+                    }
                 </div>
                 <div class="form-group">
                     <label for="notebook-desc">Mô tả:</label>
-                    <textarea id="notebook-desc" @bind="newNotebookDescription" placeholder="Nhập mô tả (tùy chọn)"></textarea>
+                    <textarea id="notebook-desc" @bind="newNotebookDescription"
+                              placeholder="Nhập mô tả (tùy chọn)"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-cancel" @onclick="CloseNotebookModal">Hủy</button>
-                <button class="btn btn-confirm" @onclick="CreateNotebook">Tạo</button>
+                <button class="btn btn-confirm" @onclick="CreateNotebook" disabled="@isCreating">
+                    @if (isCreating)
+                    {
+                        <span>Đang tạo...</span>
+                    }
+                    else
+                    {
+                        <span>Tạo</span>
+                    }
+                </button>
             </div>
         </div>
     </div>
 }
 
+<!-- Toast Notification -->
+@if (showToast)
+{
+    <div style="position: fixed; top: 20px; right: 20px; background: white; border-left: 4px solid @(toastType == "success" ? "#4caf50" : "#f44336"); padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 2000; animation: slideIn 0.3s ease-out;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid @(toastType == "success" ? "fa-check-circle" : "fa-exclamation-circle")"
+               style="color: @(toastType == "success" ? "#4caf50" : "#f44336"); font-size: 1.2rem;"></i>
+            <span>@toastMessage</span>
+        </div>
+    </div>
+}
+
 <style>
-    /* Biến màu sắc */
+    /* CSS giữ nguyên từ file gốc */
     :root {
         --primary-color: #3e67d6;
         --secondary-color: #f1f5fd;
@@ -345,22 +337,14 @@
             background-color: var(--secondary-color);
         }
 
-        .category-item.active {
+        .category-item.active, .notebook-item.active {
             background-color: var(--primary-color);
             color: white;
         }
 
-            .category-item.active .count {
+            .category-item.active .count, .notebook-item.active .count {
                 background-color: rgba(255, 255, 255, 0.2);
-            }
-
-        .notebook-item.active {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-            .notebook-item.active .count {
-                background-color: rgba(255, 255, 255, 0.2);
+                color: white;
             }
 
     .count {
@@ -531,7 +515,6 @@
             color: var(--border-color);
         }
 
-    /* Modal styles */
     .modal-overlay {
         position: fixed;
         top: 0;
@@ -586,6 +569,8 @@
 
     .modal-body {
         padding: 20px;
+        max-height: 400px;
+        overflow-y: auto;
     }
 
     .form-group {
@@ -629,6 +614,11 @@
         transition: background-color 0.2s;
     }
 
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
     .btn-cancel {
         background-color: #f0f0f0;
         color: var(--text-color);
@@ -643,11 +633,22 @@
         color: white;
     }
 
-        .btn-confirm:hover {
+        .btn-confirm:hover:not(:disabled) {
             background-color: #2a4fb3;
         }
 
-    /* Responsive design */
+    @@keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
     @@media (max-width: 768px) {
         .notebook-content {
             grid-template-columns: 1fr;
@@ -675,86 +676,82 @@
 </style>
 
 @code {
-    // Danh sách từ vựng cá nhân (lưu tạm trong bộ nhớ)
-    // Trong ứng dụng thực tế bạn có thể load/save từ DB hoặc API.
     private List<VocabularyItem> personalVocabulary = new List<VocabularyItem>();
-
-    // Danh sách sổ tay
     private List<Notebook> myNotebooks = new List<Notebook>();
-
-    // Danh sách đã được lọc theo danh mục (hiển thị)
     private List<VocabularyItem> filteredVocabulary = new List<VocabularyItem>();
 
-    // Danh mục đang được chọn (giá trị hiển thị). Mặc định "Tất cả".
-    private string selectedCategory = "Tất cả";
+    private string activeCategory = "Tất cả";
     private string selectedNotebookName = "Tất cả";
 
-    // Sổ tay đang được chọn. Null hoặc "Tất cả" = hiển thị tất cả
-    private string? activeNotebook = null;
-
-    // Cờ để điều khiển hiển thị modal thêm/sửa từ vựng
     private bool showVocabularyModal = false;
-
-    // Cờ để điều khiển hiển thị modal tạo sổ tay
     private bool showNotebookModal = false;
 
-    // Model tạm thời dùng cho form thêm/sửa. @bind các input map vào object này.
     private VocabularyItem newVocabulary = new VocabularyItem();
+    private VocabularyItem? editingVocabulary = null;
 
-    // Nếu khác null thì đang ở chế độ "sửa" — giữ tham chiếu item cần sửa
-    private VocabularyItem editingVocabulary = null;
-
-    // Model tạm cho modal tạo sổ tay (tên, mô tả)
     private string newNotebookName = "";
     private string newNotebookDescription = "";
 
-    // Phương thức override: gọi khi component khởi tạo
-    //  - Load dữ liệu từ JSON file
-    //  - Và đặt filteredVocabulary mặc định = personalVocabulary
+    private bool showWordError = false;
+    private bool showMeaningError = false;
+    private bool showNotebookNameError = false;
+
+    private bool isSaving = false;
+    private bool isCreating = false;
+
+    private bool showToast = false;
+    private string toastMessage = "";
+    private string toastType = "success";
+
     protected override async Task OnInitializedAsync()
     {
         await LoadDataAsync();
     }
 
-    // Load dữ liệu từ JSON files
     private async Task LoadDataAsync()
     {
-        // Load từ vựng
         personalVocabulary = await DatabaseService.LoadVocabularyAsync();
-
-        // Load sổ tay
         myNotebooks = await DatabaseService.LoadNotebooksAsync();
 
-        // Ban đầu hiển thị toàn bộ danh sách cá nhân
+        if (myNotebooks.Count == 0)
+        {
+            myNotebooks.Add(new Notebook
+                {
+                    Name = "từ vựng",
+                    Description = "Sổ tay từ vựng mặc định",
+                    CreatedDate = DateTime.Now
+                });
+            await SaveNotebookDataAsync();
+        }
+
         UpdateFilter();
     }
 
-    // Lưu dữ liệu từ vựng vào JSON
     private async Task SaveVocabularyDataAsync()
     {
         await DatabaseService.SaveVocabularyAsync(personalVocabulary);
     }
 
-    // Lưu dữ liệu sổ tay vào JSON
     private async Task SaveNotebookDataAsync()
     {
         await DatabaseService.SaveNotebooksAsync(myNotebooks);
     }
 
-    // Hàm: đổi danh mục đang active và cập nhật danh sách hiển thị (filteredVocabulary)
     private void SetActiveCategory(string category)
     {
-        selectedCategory = category;
+        activeCategory = category;
         UpdateFilter();
     }
 
-    // Hàm: đổi sổ tay đang active và cập nhật danh sách hiển thị
     private void SetActiveNotebook(string notebookName)
     {
-        // Nếu click lại sổ tay đang chọn thì bỏ chọn (hiển thị tất cả)
         if (selectedNotebookName == notebookName)
         {
-            selectedNotebookName = "Tất cả";
+            // Nếu đang chọn "Tất cả" thì không làm gì
+            if (notebookName != "Tất cả")
+            {
+                selectedNotebookName = "Tất cả";
+            }
         }
         else
         {
@@ -763,145 +760,162 @@
         UpdateFilter();
     }
 
-    // Hàm: lọc từ vựng theo cả category và notebook
     private void UpdateFilter()
     {
         filteredVocabulary = personalVocabulary
-            .Where(item => (selectedCategory == "Tất cả" || item.Category == selectedCategory)
-                && (selectedNotebookName == "Tất cả" || item.NotebookName == selectedNotebookName))
+            .Where(item => (selectedNotebookName == "Tất cả" || item.NotebookName == selectedNotebookName))
+            .OrderByDescending(item => item.AddedDate)
             .ToList();
     }
 
-    // Trả về tổng số từ trong personalVocabulary (dùng để hiển thị badge "Tất cả")
     private int GetTotalVocabularyCount()
     {
         return personalVocabulary.Count;
     }
 
-    // Trả về số lượng từ theo 1 category cụ thể
     private int GetCategoryCount(string category)
     {
         return personalVocabulary.Count(item => item.Category == category);
     }
 
-    // Mở modal thêm từ vựng:
-    // - reset newVocabulary về object mới
-    // - editingVocabulary = null (tức là chế độ "thêm", không phải sửa)
-    // - tự động điền category và notebook đang được chọn
-    // - bật showVocabularyModal để hiển thị modal
+    private int GetNotebookCount(string notebookName)
+    {
+        return personalVocabulary.Count(item => item.NotebookName == notebookName);
+    }
+
     private void ShowAddVocabularyModal()
     {
-        newVocabulary = new VocabularyItem();
-        newVocabulary.Category = selectedCategory == "Tất cả" ? "Từ vựng cơ bản" : selectedCategory;
-        newVocabulary.NotebookName = selectedNotebookName == "Tất cả" ? (myNotebooks.Count > 0 ? myNotebooks[0].Name : "") : selectedNotebookName;
+        newVocabulary = new VocabularyItem
+            {
+                Category = "Từ vựng cơ bản",
+                NotebookName = selectedNotebookName == "Tất cả" ? "" : selectedNotebookName
+            };
         editingVocabulary = null;
+        showWordError = false;
+        showMeaningError = false;
         showVocabularyModal = true;
     }
 
-    // Mở modal tạo sổ tay mới:
-    // - reset tên/mô tả
-    // - bật showNotebookModal true
     private void ShowCreateNotebookModal()
     {
         newNotebookName = "";
         newNotebookDescription = "";
+        showNotebookNameError = false;
         showNotebookModal = true;
     }
 
-    // Đóng modal thêm/sửa từ vựng (chỉ gán flag = false)
     private void CloseVocabularyModal()
     {
         showVocabularyModal = false;
+        showWordError = false;
+        showMeaningError = false;
     }
 
-    // Đóng modal tạo sổ tay
     private void CloseNotebookModal()
     {
         showNotebookModal = false;
+        showNotebookNameError = false;
     }
 
-    // Lưu từ vựng (dùng cho cả thêm và sửa)
-    // Quy trình:
-    // 1) Validate: kiểm tra Word và Meaning không rỗng => nếu rỗng thì return (bạn có thể hiển thị thông báo lỗi)
-    // 2) Nếu editingVocabulary == null => thêm mới:
-    //      - set AddedDate, insert vào personalVocabulary (ở vị trí đầu)
-    //    Ngược lại => đang sửa: cập nhật các property của editingVocabulary
-    // 3) Cập nhật filtered list dựa trên activeCategory
-    // 4) Lưu vào JSON file
-    // 5) đóng modal
     private async Task SaveVocabulary()
     {
-        if (string.IsNullOrWhiteSpace(newVocabulary.Word) || string.IsNullOrWhiteSpace(newVocabulary.Meaning))
+        showWordError = false;
+        showMeaningError = false;
+
+        if (string.IsNullOrWhiteSpace(newVocabulary.Word))
         {
-            // Chưa validate UI; ở đây chỉ return. Có thể thêm thông báo lỗi (Toast / Validation message).
+            showWordError = true;
             return;
         }
 
-        if (editingVocabulary == null)
+        if (string.IsNullOrWhiteSpace(newVocabulary.Meaning))
         {
-            // Thêm mới: set ngày thêm rồi insert vào danh sách
-            newVocabulary.AddedDate = DateTime.Now;
-            personalVocabulary.Insert(0, newVocabulary);
-
-            // Lưu ý: newVocabulary là object được bind trực tiếp vào form,
-            // nếu cần tránh tham chiếu bị shared, có thể clone object trước khi insert.
-        }
-        else
-        {
-            // Đang sửa — cập nhật các trường của item gốc
-            editingVocabulary.Word = newVocabulary.Word;
-            editingVocabulary.Meaning = newVocabulary.Meaning;
-            editingVocabulary.Note = newVocabulary.Note;
-            editingVocabulary.Category = newVocabulary.Category;
-            editingVocabulary.NotebookName = newVocabulary.NotebookName;
+            showMeaningError = true;
+            return;
         }
 
-        // Lưu vào JSON file
-        await SaveVocabularyDataAsync();
+        isSaving = true;
+        await Task.Delay(200);
 
-        // Cập nhật danh sách hiển thị theo filter hiện tại
-        UpdateFilter();
+        try
+        {
+            if (editingVocabulary == null)
+            {
+                newVocabulary.AddedDate = DateTime.Now;
+                personalVocabulary.Insert(0, newVocabulary);
+                ShowToastMessage($"Đã thêm từ '{newVocabulary.Word}' thành công!", "success");
+            }
+            else
+            {
+                editingVocabulary.Word = newVocabulary.Word;
+                editingVocabulary.Meaning = newVocabulary.Meaning;
+                editingVocabulary.Note = newVocabulary.Note;
+                editingVocabulary.Category = newVocabulary.Category;
+                editingVocabulary.NotebookName = newVocabulary.NotebookName;
+                ShowToastMessage($"Đã cập nhật từ '{newVocabulary.Word}' thành công!", "success");
+            }
 
-        // Đóng modal
-        showVocabularyModal = false;
+            await SaveVocabularyDataAsync();
+            UpdateFilter();
+            showVocabularyModal = false;
+        }
+        catch (Exception ex)
+        {
+            ShowToastMessage($"Lỗi: {ex.Message}", "error");
+        }
+        finally
+        {
+            isSaving = false;
+        }
     }
 
-    // Tạo sổ tay mới và lưu vào JSON file
     private async Task CreateNotebook()
     {
+        showNotebookNameError = false;
+
         if (string.IsNullOrWhiteSpace(newNotebookName))
         {
-            // Thông báo lỗi có thể được thêm vào.
+            showNotebookNameError = true;
             return;
         }
 
-        // Tạo sổ tay mới và thêm vào danh sách
-        var notebook = new Notebook
-            {
-                Name = newNotebookName,
-                Description = newNotebookDescription,
-                CreatedDate = DateTime.Now
-            };
+        if (myNotebooks.Any(n => n.Name.Equals(newNotebookName, StringComparison.OrdinalIgnoreCase)))
+        {
+            ShowToastMessage("Tên sổ tay đã tồn tại!", "error");
+            return;
+        }
 
-        myNotebooks.Insert(0, notebook);
+        isCreating = true;
+        await Task.Delay(200);
 
-        // Lưu vào JSON file
-        await SaveNotebookDataAsync();
+        try
+        {
+            var notebook = new Notebook
+                {
+                    Name = newNotebookName,
+                    Description = newNotebookDescription,
+                    CreatedDate = DateTime.Now
+                };
 
-        showNotebookModal = false;
+            myNotebooks.Insert(0, notebook);
+            await SaveNotebookDataAsync();
 
-        // Có thể show toast thông báo tạo thành công ở đây
+            ShowToastMessage($"Đã tạo sổ tay '{newNotebookName}' thành công!", "success");
+            showNotebookModal = false;
+        }
+        catch (Exception ex)
+        {
+            ShowToastMessage($"Lỗi: {ex.Message}", "error");
+        }
+        finally
+        {
+            isCreating = false;
+        }
     }
 
-    // Bắt đầu sửa 1 item:
-    // - lưu tham chiếu item vào editingVocabulary để biết mình đang sửa item nào
-    // - copy giá trị của item sang newVocabulary (form) để người dùng sửa
-    // - show modal
     private void EditVocabulary(VocabularyItem item)
     {
         editingVocabulary = item;
-
-        // Tạo object mới và copy giá trị để form bind vào (tránh sửa trực tiếp trước khi Save)
         newVocabulary = new VocabularyItem
             {
                 Word = item.Word,
@@ -910,19 +924,68 @@
                 Category = item.Category,
                 NotebookName = item.NotebookName
             };
-
+        showWordError = false;
+        showMeaningError = false;
         showVocabularyModal = true;
     }
 
-    // Xóa item khỏi personalVocabulary, lưu vào JSON file và cập nhật danh sách hiển thị
     private async Task DeleteVocabulary(VocabularyItem item)
     {
-        personalVocabulary.Remove(item);
+        try
+        {
+            personalVocabulary.Remove(item);
+            await SaveVocabularyDataAsync();
+            UpdateFilter();
 
-        // Lưu vào JSON file
-        await SaveVocabularyDataAsync();
+            ShowToastMessage($"Đã xóa từ '{item.Word}'", "success");
+        }
+        catch (Exception ex)
+        {
+            ShowToastMessage($"Lỗi: {ex.Message}", "error");
+        }
+    }
 
-        // Sau khi xóa, cập nhật filtered view theo filter hiện tại
-        UpdateFilter();
+    private async Task DeleteNotebook(Notebook notebook)
+    {
+        try
+        {
+            // Kiểm tra xem sổ tay có từ vựng không
+            var vocabCount = GetNotebookCount(notebook.Name);
+
+            if (vocabCount > 0)
+            {
+                ShowToastMessage($"Không thể xóa sổ tay '{notebook.Name}' vì còn {vocabCount} từ vựng bên trong!", "error");
+                return;
+            }
+
+            // Xác nhận xóa (có thể bỏ qua nếu không cần)
+            myNotebooks.Remove(notebook);
+            await SaveNotebookDataAsync();
+
+            // Nếu đang chọn sổ tay bị xóa, chuyển về "Tất cả"
+            if (selectedNotebookName == notebook.Name)
+            {
+                selectedNotebookName = "Tất cả";
+                UpdateFilter();
+            }
+
+            ShowToastMessage($"Đã xóa sổ tay '{notebook.Name}'", "success");
+        }
+        catch (Exception ex)
+        {
+            ShowToastMessage($"Lỗi: {ex.Message}", "error");
+        }
+    }
+
+    private async void ShowToastMessage(string message, string type)
+    {
+        toastMessage = message;
+        toastType = type;
+        showToast = true;
+        StateHasChanged();
+
+        await Task.Delay(3000);
+        showToast = false;
+        StateHasChanged();
     }
 }
